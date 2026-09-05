@@ -7,8 +7,15 @@ export function Badge({
   size = 'md',
   className = '',
   dot = false,
-  icon: Icon
+  icon
 }) {
+  const renderIcon = () => {
+    if (!icon) return null;
+    if (React.isValidElement(icon)) return icon;
+    const IconComponent = icon;
+    return <IconComponent className="w-3.5 h-3.5 shrink-0" />;
+  };
+
   const variants = {
     neutral: 'bg-slate-100 text-slate-700 border-slate-200/80',
     success: 'bg-emerald-50 text-emerald-700 border-emerald-200/70',
@@ -41,7 +48,7 @@ export function Badge({
   return (
     <span className={`inline-flex items-center rounded-full border ${variants[variant] || variants.neutral} ${sizes[size] || sizes.md} ${className}`}>
       {dot && <span className={`w-1.5 h-1.5 rounded-full ${dots[variant] || dots.neutral}`} />}
-      {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+      {icon && renderIcon()}
       {children}
     </span>
   );
