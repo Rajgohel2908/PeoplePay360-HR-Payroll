@@ -3,9 +3,9 @@ const db = require('../database/connection');
 
 async function getPayrollSummaryReport(req, res, next) {
   try {
-    const { year = '2026' } = req.query;
+    const { year } = req.query;
 
-    const data = await db('payruns as pr')
+    let query = db('payruns as pr')
       .leftJoin('salary_structures as ss', 'pr.salary_structure_id', 'ss.id')
       .select(
         'pr.payrun_number',
@@ -21,9 +21,13 @@ async function getPayrollSummaryReport(req, res, next) {
         'pr.total_lop',
         'ss.name as structure_name'
       )
-      .where('pr.period_start', 'like', `${year}%`)
       .orderBy('pr.period_start', 'desc');
 
+    if (year && year !== 'all') {
+      query = query.where('pr.period_start', 'like', `${year}%`);
+    }
+
+    const data = await query;
     res.json({ success: true, data });
   } catch (err) {
     next(err);
@@ -86,9 +90,9 @@ async function getAttendanceReport(req, res, next) {
 
 async function getLeaveReport(req, res, next) {
   try {
-    const { year = '2026' } = req.query;
+    const { year } = req.query;
 
-    const data = await db('time_off_allocations as a')
+    let query = db('time_off_allocations as a')
       .join('employees as e', 'a.employee_id', 'e.id')
       .join('time_off_types as t', 'a.leave_type_id', 't.id')
       .leftJoin('departments as d', 'e.department_id', 'd.id')
@@ -102,9 +106,13 @@ async function getLeaveReport(req, res, next) {
         'a.pending_days',
         'a.remaining_days'
       )
-      .where('a.year', year)
       .orderBy('e.first_name', 'asc');
 
+    if (year && year !== 'all') {
+      query = query.where('a.year', year);
+    }
+
+    const data = await query;
     res.json({ success: true, data });
   } catch (err) {
     next(err);

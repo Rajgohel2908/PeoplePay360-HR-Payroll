@@ -75,21 +75,10 @@ async function getDashboardSummary(req, res, next) {
       .first();
 
     // 6. Monthly Payroll Cost Trend
-    let payrollTrends = await db('payruns')
+    const payrollTrends = await db('payruns')
       .select('payrun_number', 'title', 'period_start', 'total_gross', 'total_net', 'total_deductions', 'status')
       .orderBy('period_start', 'asc')
       .limit(6);
-
-    if (!payrollTrends || payrollTrends.length === 0) {
-      payrollTrends = [
-        { payrun_number: 'PR-2026-03', title: 'March 2026 Monthly Payrun', period_start: '2026-03-01', total_gross: 4950000.0, total_net: 4380000.0, total_deductions: 570000.0, status: 'paid' },
-        { payrun_number: 'PR-2026-04', title: 'April 2026 Monthly Payrun', period_start: '2026-04-01', total_gross: 5120000.0, total_net: 4540000.0, total_deductions: 580000.0, status: 'paid' },
-        { payrun_number: 'PR-2026-05', title: 'May 2026 Monthly Payrun', period_start: '2026-05-01', total_gross: 5280000.0, total_net: 4690000.0, total_deductions: 590000.0, status: 'paid' },
-        { payrun_number: 'PR-2026-06', title: 'June 2026 Monthly Payrun', period_start: '2026-06-01', total_gross: 5390000.0, total_net: 4780000.0, total_deductions: 610000.0, status: 'paid' },
-        { payrun_number: 'PR-2026-07', title: 'July 2026 Regular Monthly Payrun', period_start: '2026-07-01', total_gross: 5450000.0, total_net: 4825000.0, total_deductions: 625000.0, status: 'paid' },
-        { payrun_number: 'PR-2026-08', title: 'August 2026 Monthly Payroll Cycle', period_start: '2026-08-01', total_gross: 5680000.0, total_net: 5032000.0, total_deductions: 648000.0, status: 'validation_required' }
-      ];
-    }
 
     // 7. Salary Cost by Department
     const departmentCost = await db('contracts as c')
@@ -178,7 +167,7 @@ async function getDashboardSummary(req, res, next) {
         severity: 'warning',
         type: 'Attendance Exceptions',
         title: `${missingCheckouts.length} Unresolved Missing Checkout(s)`,
-        description: 'Pooja Verma and others have unverified check-out times.',
+        description: `${missingCheckouts.slice(0, 2).map(a => `${a.first_name} ${a.last_name}`).join(', ')}${missingCheckouts.length > 2 ? ' and others' : ''} have unverified check-out times.`,
         actionLink: '/attendance',
         count: missingCheckouts.length,
         items: missingCheckouts.map(a => `${a.first_name} ${a.last_name} on ${a.date}`)
@@ -203,8 +192,8 @@ async function getDashboardSummary(req, res, next) {
         kpis: {
           totalEmployees: parseInt(empCounts.total_employees, 10),
           activeEmployees: parseInt(empCounts.active_employees, 10),
-          totalGrossSalary: parseFloat(latestPayrun?.total_gross || allPayrunsStats?.total_gross_sum || 5680000),
-          totalNetSalary: parseFloat(latestPayrun?.total_net || allPayrunsStats?.total_net_sum || 5032000),
+          totalGrossSalary: parseFloat(latestPayrun?.total_gross || allPayrunsStats?.total_gross_sum || 0),
+          totalNetSalary: parseFloat(latestPayrun?.total_net || allPayrunsStats?.total_net_sum || 0),
           payslipsGenerated: parseInt(totalPayslips.count, 10),
           pendingTimeOff: parseInt(pendingLeaveCount.count, 10),
           attendanceHealthPercent,
@@ -218,10 +207,10 @@ async function getDashboardSummary(req, res, next) {
           departmentHeadcount,
           leaveUsage,
           attendanceDistribution: [
-            { name: 'Present', value: parseInt(attendanceStats?.present_count || 120, 10), color: '#10b981' },
-            { name: 'Late', value: parseInt(attendanceStats?.late_count || 8, 10), color: '#f59e0b' },
-            { name: 'Missing Checkout', value: parseInt(attendanceStats?.missing_checkout_count || 2, 10), color: '#ef4444' },
-            { name: 'Overtime Shift', value: parseInt(attendanceStats?.overtime_count || 5, 10), color: '#3b82f6' }
+            { name: 'Present', value: parseInt(attendanceStats?.present_count || 0, 10), color: '#10b981' },
+            { name: 'Late', value: parseInt(attendanceStats?.late_count || 0, 10), color: '#f59e0b' },
+            { name: 'Missing Checkout', value: parseInt(attendanceStats?.missing_checkout_count || 0, 10), color: '#ef4444' },
+            { name: 'Overtime Shift', value: parseInt(attendanceStats?.overtime_count || 0, 10), color: '#3b82f6' }
           ]
         },
         alerts

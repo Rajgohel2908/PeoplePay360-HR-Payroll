@@ -101,52 +101,10 @@ export function Dashboard() {
 
   const { kpis, charts, alerts, latestPayrun } = data;
 
-  const defaultPayrollTrends = [
-    { payrun_number: 'PR-2026-03', title: 'March 2026', total_gross: 4950000, total_net: 4380000 },
-    { payrun_number: 'PR-2026-04', title: 'April 2026', total_gross: 5120000, total_net: 4540000 },
-    { payrun_number: 'PR-2026-05', title: 'May 2026', total_gross: 5280000, total_net: 4690000 },
-    { payrun_number: 'PR-2026-06', title: 'June 2026', total_gross: 5390000, total_net: 4780000 },
-    { payrun_number: 'PR-2026-07', title: 'July 2026', total_gross: 5450000, total_net: 4825000 },
-    { payrun_number: 'PR-2026-08', title: 'August 2026', total_gross: 5680000, total_net: 5032000 }
-  ];
-
-  const payrollTrendsData = (charts?.payrollTrends && charts.payrollTrends.length > 0)
-    ? charts.payrollTrends
-    : defaultPayrollTrends;
-
-  const defaultAttendanceDistribution = [
-    { name: 'Present', value: 42, color: '#10b981' },
-    { name: 'Late', value: 4, color: '#f59e0b' },
-    { name: 'Missing Checkout', value: 2, color: '#ef4444' },
-    { name: 'On Leave', value: 4, color: '#3b82f6' }
-  ];
-
-  const attendanceDistData = (charts?.attendanceDistribution && charts.attendanceDistribution.length > 0)
-    ? charts.attendanceDistribution
-    : defaultAttendanceDistribution;
-
-  const defaultDepartmentCost = [
-    { department_name: 'Engineering', total_salary_cost: 2150000 },
-    { department_name: 'Product', total_salary_cost: 1100000 },
-    { department_name: 'Operations', total_salary_cost: 950000 },
-    { department_name: 'Finance', total_salary_cost: 820000 },
-    { department_name: 'Human Resources', total_salary_cost: 660000 }
-  ];
-
-  const departmentCostData = (charts?.departmentCost && charts.departmentCost.length > 0)
-    ? charts.departmentCost
-    : defaultDepartmentCost;
-
-  const defaultLeaveUsage = [
-    { leave_name: 'Paid Annual Leave', total_days_taken: 18, color: '#10b981' },
-    { leave_name: 'Sick Leave', total_days_taken: 8, color: '#f59e0b' },
-    { leave_name: 'Casual Leave', total_days_taken: 12, color: '#3b82f6' },
-    { leave_name: 'Maternity/Paternity', total_days_taken: 5, color: '#8b5cf6' }
-  ];
-
-  const leaveUsageData = (charts?.leaveUsage && charts.leaveUsage.length > 0)
-    ? charts.leaveUsage
-    : defaultLeaveUsage;
+  const payrollTrendsData = charts?.payrollTrends || [];
+  const attendanceDistData = charts?.attendanceDistribution || [];
+  const departmentCostData = charts?.departmentCost || [];
+  const leaveUsageData = charts?.leaveUsage || [];
 
   const formatCurrency = (val) => `₹${parseFloat(val || 0).toLocaleString('en-IN')}`;
 
