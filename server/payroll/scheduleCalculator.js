@@ -8,8 +8,8 @@ const db = require('../database/connection');
  * @param {string} periodEnd (YYYY-MM-DD)
  * @returns {Promise<{expectedWorkingDays: number, expectedHours: number, totalCalendarDays: number}>}
  */
-async function calculateExpectedSchedule(scheduleId, periodStart, periodEnd) {
-  const scheduleDays = await db('schedule_days')
+async function calculateExpectedSchedule(scheduleId, periodStart, periodEnd, dbOrTrx = db) {
+  const scheduleDays = await dbOrTrx('schedule_days')
     .where('schedule_id', scheduleId);
 
   const dayMap = {};

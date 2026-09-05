@@ -442,7 +442,7 @@ async function updateEmployee(req, res, next) {
       entity: 'Employee',
       entityId: id,
       oldValues: JSON.stringify(oldEmployee),
-      newValues: JSON.stringify(updateData),
+      newValues: JSON.stringify(cleanData),
       reason: 'Employee profile updated',
       ipAddress: req.ip
     });
@@ -511,11 +511,21 @@ async function deleteEmployee(req, res, next) {
   }
 }
 
+async function getDepartments(req, res, next) {
+  try {
+    const departments = await db('departments').orderBy('name', 'asc');
+    res.json({ success: true, data: departments });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getEmployees,
   getEmployeeById,
   getEmployee360,
   createEmployee,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
+  getDepartments
 };

@@ -161,7 +161,6 @@ async function createContract(req, res, next) {
 async function updateContract(req, res, next) {
   try {
     const { id } = req.params;
-    const updateData = { ...req.body, updated_at: new Date() };
 
     const oldContract = await db('contracts').where('id', id).first();
     if (!oldContract) {
@@ -172,8 +171,30 @@ async function updateContract(req, res, next) {
       });
     }
 
-    delete updateData.id;
-    await db('contracts').where('id', id).update(updateData);
+    const allowedColumns = [
+      'contract_id',
+      'employee_id',
+      'start_date',
+      'end_date',
+      'department_id',
+      'job_position_id',
+      'employment_type',
+      'wage',
+      'wage_type',
+      'salary_structure_id',
+      'working_schedule_id',
+      'status',
+      'contract_notes'
+    ];
+
+    const cleanData = { updated_at: new Date() };
+    for (const col of allowedColumns) {
+      if (req.body[col] !== undefined) {
+        cleanData[col] = req.body[col];
+      }
+    }
+
+    await db('contracts').where('id', id).update(cleanData);
 
     await logAudit({
       userId: req.user?.id,

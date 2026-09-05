@@ -9,8 +9,8 @@ const { ATTENDANCE_STATUS } = require('../config/constants');
  * @param {string} periodEnd (YYYY-MM-DD)
  * @returns {Promise<{workedDays: number, totalWorkedHours: number, totalOvertimeHours: number, lateMinutes: number, missingCheckouts: number, recordsCount: number}>}
  */
-async function calculateAttendanceSummary(employeeId, periodStart, periodEnd) {
-  const records = await db('attendance')
+async function calculateAttendanceSummary(employeeId, periodStart, periodEnd, dbOrTrx = db) {
+  const records = await dbOrTrx('attendance')
     .where('employee_id', employeeId)
     .whereBetween('date', [periodStart, periodEnd]);
 

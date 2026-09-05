@@ -78,10 +78,34 @@ export function Employee360() {
 
   const { employee, activeContract, contracts, attendance, timeOff, payslips, documents, auditLogs } = data;
 
+  const openEditModal = () => {
+    setEditFormData({
+      first_name: employee.first_name || '',
+      last_name: employee.last_name || '',
+      phone: employee.phone || '',
+      employment_status: employee.employment_status || 'Active',
+      bank_name: employee.bank_name || '',
+      account_number: employee.account_number || '',
+      ifsc_code: employee.ifsc_code || '',
+      pan_number: employee.pan_number || ''
+    });
+    setShowEditModal(true);
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.put(`/employees/${employee.id}`, editFormData);
+      const payload = {
+        first_name: editFormData.first_name,
+        last_name: editFormData.last_name,
+        phone: editFormData.phone,
+        employment_status: editFormData.employment_status,
+        bank_name: editFormData.bank_name,
+        account_number: editFormData.account_number,
+        ifsc_code: editFormData.ifsc_code,
+        pan_number: editFormData.pan_number
+      };
+      const res = await api.put(`/employees/${employee.id}`, payload);
       if (res.success) {
         showSuccess('Employee profile updated successfully!');
         setShowEditModal(false);
@@ -123,7 +147,7 @@ export function Employee360() {
               variant="outline"
               size="sm"
               icon={Edit2}
-              onClick={() => setShowEditModal(true)}
+              onClick={openEditModal}
             >
               Edit Profile
             </Button>

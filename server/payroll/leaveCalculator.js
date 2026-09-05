@@ -9,9 +9,9 @@ const { TIME_OFF_STATUS } = require('../config/constants');
  * @param {string} periodEnd
  * @returns {Promise<{approvedPaidLeaveDays: number, unpaidLeaveDays: number, pendingRequestsCount: number, leaveRequests: Array}>}
  */
-async function calculateLeaveSummary(employeeId, periodStart, periodEnd) {
+async function calculateLeaveSummary(employeeId, periodStart, periodEnd, dbOrTrx = db) {
   // Query all leave requests that overlap with the payroll period
-  const requests = await db('time_off_requests as r')
+  const requests = await dbOrTrx('time_off_requests as r')
     .join('time_off_types as t', 'r.leave_type_id', 't.id')
     .select(
       'r.*',

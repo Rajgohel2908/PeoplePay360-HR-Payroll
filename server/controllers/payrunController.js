@@ -181,12 +181,22 @@ async function findEligibleEmployees(req, res, next) {
 
     const employees = await query.orderBy('e.first_name', 'asc');
 
-    const result = employees.map(emp => {
+    // Deduplicate employees in case multiple contracts matched
+    const empMap = new Map();
+    for (const emp of employees) {
+      if (!empMap.has(emp.employee_id)) {
+        empMap.set(emp.employee_id, emp);
+      }
+    }
+    const uniqueEmployees = Array.from(empMap.values());
+
+    const result = uniqueEmployees.map(emp => {
       const issues = [];
       let isEligible = true;
 
       if (!emp.contract_id || emp.contract_status !== 'active') {
         issues.push('No active contract found for period');
+        isEligible = false;
       }
       if (!emp.bank_name || !emp.account_number) {
         issues.push('Missing bank payment details');
@@ -249,13 +259,15 @@ async function createPayrun(req, res, next) {
       const payrunDbId = newId?.id || newId;
 
       // Add selected employees into payrun_employees junction
-      if (selected_employee_ids && selected_employee_ids.length > 0) {
-        const rows = selected_employee_ids.map(empId => ({
-          payrun_id: payrunDbId,
-          employee_id: empId,
-          is_included: true
-        }));
-        await trx('payrun_employees').insert(rows);
+      if (Array.isArray(selected_employee_ids)) {
+        if (selected_employee_ids.length > 0) {
+          const rows = selected_employee_ids.map(empId => ({
+            payrun_id: payrunDbId,
+            employee_id: empId,
+            is_included: true
+          }));
+          await trx('payrun_employees').insert(rows);
+        }
       } else {
         // Default: include all active employees
         const allActive = await trx('employees').where('employment_status', '!=', 'Terminated').select('id');
@@ -267,19 +279,19 @@ async function createPayrun(req, res, next) {
         await trx('payrun_employees').insert(rows);
       }
 
-      await logAudit({
-        userId: req.user.id,
-        userName: req.user.username,
-        userRole: req.user.role,
-        action: 'CREATE_PAYRUN',
-        entity: 'Payrun',
-        entityId: payrunDbId,
-        newValues: JSON.stringify({ payrunNumber, period_start, period_end }),
-        reason: 'Initialized new payrun cycle wizard',
-        ipAddress: req.ip
-      });
-
       return payrunDbId;
+    });
+
+    await logAudit({
+      userId: req.user.id,
+      userName: req.user.username,
+      userRole: req.user.role,
+      action: 'CREATE_PAYRUN',
+      entity: 'Payrun',
+      entityId: payrunResult,
+      newValues: JSON.stringify({ payrunNumber, period_start, period_end }),
+      reason: 'Initialized new payrun cycle wizard',
+      ipAddress: req.ip
     });
 
     res.status(201).json({
@@ -309,9 +321,9 @@ async function triggerCompute(req, res, next) {
       entity: 'Payrun',
       entityId: id,
       newValues: JSON.stringify({
-        total_gross: result.payrun.total_gross,
-        total_net: result.payrun.total_net,
-        payslips: result.payslipsCount
+        total_gross: result.payrun?.total_gross || 0,
+        total_net: result.payrun?.total_net || 0,
+        payslips: result.payslipsCount || 0
       }),
       reason: 'Batch payroll computation completed',
       ipAddress: req.ip

@@ -25,7 +25,7 @@ async function computePayrun(payrunId, userId) {
     throw new Error('Cannot recompute a finalized or paid payrun.');
   }
 
-  return await db.transaction(async (trx) => {
+  const payslipsCount = await db.transaction(async (trx) => {
     // 1. Fetch eligible/included employees for this payrun
     const payrunEmployees = await trx('payrun_employees as pe')
       .join('employees as e', 'pe.employee_id', 'e.id')
@@ -57,7 +57,8 @@ async function computePayrun(payrunId, userId) {
       const { contract, error: contractError } = await resolveContractForPeriod(
         pe.employee_id,
         payrun.period_start,
-        payrun.period_end
+        payrun.period_end,
+        trx
       );
 
       // Default wage / structure fallback if contract missing or custom structure selected on payrun
@@ -70,21 +71,24 @@ async function computePayrun(payrunId, userId) {
       const scheduleSummary = await calculateExpectedSchedule(
         scheduleId,
         payrun.period_start,
-        payrun.period_end
+        payrun.period_end,
+        trx
       );
 
       // Step C: Calculate Attendance Summary
       const attSummary = await calculateAttendanceSummary(
         pe.employee_id,
         payrun.period_start,
-        payrun.period_end
+        payrun.period_end,
+        trx
       );
 
       // Step D: Calculate Leave Summary
       const leaveSummary = await calculateLeaveSummary(
         pe.employee_id,
         payrun.period_start,
-        payrun.period_end
+        payrun.period_end,
+        trx
       );
 
       // Step E: Determine payable vs unpaid days
@@ -185,19 +189,21 @@ async function computePayrun(payrunId, userId) {
         updated_at: new Date()
       });
 
-    // Step L: Run Pre-Flight Validation Checks
-    const validationSummary = await runPayrollPreFlightChecks(payrunId);
-
-    // Step M: Run Anomaly & Variance Detection
-    const variances = await detectPayrollVariances(payrunId);
-
-    return {
-      payrun: await trx('payruns').where('id', payrunId).first(),
-      payslipsCount: payslipsCreatedCount,
-      validationSummary,
-      variancesCount: variances.length
-    };
+    return payslipsCreatedCount;
   });
+
+  // Step L: Run Pre-Flight Validation Checks after transaction commits
+  const validationSummary = await runPayrollPreFlightChecks(payrunId);
+
+  // Step M: Run Anomaly & Variance Detection after transaction commits
+  const variances = await detectPayrollVariances(payrunId);
+
+  return {
+    payrun: await db('payruns').where('id', payrunId).first(),
+    payslipsCount,
+    validationSummary,
+    variancesCount: variances.length
+  };
 }
 
 module.exports = { computePayrun };

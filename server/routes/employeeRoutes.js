@@ -7,7 +7,8 @@ const {
   getEmployee360,
   createEmployee,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
+  getDepartments
 } = require('../controllers/employeeController');
 const { authenticateToken } = require('../middleware/auth');
 const { requireRole, requireSelfOrHR } = require('../middleware/rbac');
@@ -15,6 +16,7 @@ const { ROLES } = require('../config/constants');
 
 router.use(authenticateToken);
 
+router.get('/departments', getDepartments);
 router.get('/', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER, ROLES.HR_PAYROLL_USER]), getEmployees);
 router.post('/', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER]), createEmployee);
 

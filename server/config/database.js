@@ -22,11 +22,16 @@ const config = {
   },
   useNullAsDefault: true,
   pool: {
+    min: 2,
+    max: 10,
+    acquireTimeoutMillis: 30000,
     afterCreate: (conn, cb) => {
       if (!process.env.DB_CLIENT || process.env.DB_CLIENT === 'sqlite3') {
         // Enable Foreign Keys and WAL mode in SQLite for concurrency and integrity
         conn.run('PRAGMA foreign_keys = ON;', () => {
-          conn.run('PRAGMA journal_mode = WAL;', cb);
+          conn.run('PRAGMA journal_mode = WAL;', () => {
+            conn.run('PRAGMA busy_timeout = 10000;', cb);
+          });
         });
       } else {
         cb(null, conn);

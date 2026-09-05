@@ -8,9 +8,9 @@ const db = require('../database/connection');
  * @param {string} periodEnd (YYYY-MM-DD)
  * @returns {Promise<{contract: object|null, error: string|null, warning: string|null}>}
  */
-async function resolveContractForPeriod(employeeId, periodStart, periodEnd) {
+async function resolveContractForPeriod(employeeId, periodStart, periodEnd, dbOrTrx = db) {
   // Query all contracts for the employee that overlap with the period
-  const contracts = await db('contracts')
+  const contracts = await dbOrTrx('contracts')
     .where('employee_id', employeeId)
     .where('status', '!=', 'draft')
     .andWhere((builder) => {
@@ -23,7 +23,7 @@ async function resolveContractForPeriod(employeeId, periodStart, periodEnd) {
 
   if (!contracts || contracts.length === 0) {
     // Check if there is any expired contract in the past
-    const pastContract = await db('contracts')
+    const pastContract = await dbOrTrx('contracts')
       .where('employee_id', employeeId)
       .orderBy('end_date', 'desc')
       .first();

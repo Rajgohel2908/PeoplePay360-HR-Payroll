@@ -24,6 +24,7 @@ async function generatePayslipPdf(payslipId) {
       'e.bank_name',
       'e.account_number',
       'e.ifsc_code',
+      
       'e.joining_date',
       'd.name as department_name',
       'jp.title as position_title',
