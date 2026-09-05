@@ -129,14 +129,7 @@ export function Login() {
               imgClassName="max-w-[360px] xl:max-w-[440px] w-full h-auto select-none transition-transform duration-300 hover:scale-102 drop-shadow-xs"
             />
           </div>
-          <div className="space-y-1.5 max-w-sm">
-            <h2 className="text-xl xl:text-2xl font-black text-slate-900 tracking-tight">
-              Enterprise HR &amp; Payroll
-            </h2>
-            <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Automated compliance, intelligent attendance, and precision salary disbursement.
-            </p>
-          </div>
+
         </div>
 
         {/* Right Authentication Card (Desktop - Exactly Half Width) */}
