@@ -6,6 +6,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Lock, Mail, Shield, UserCheck, ArrowRight, Sparkles } from 'lucide-react';
+import Logo from '../../components/ui/Logo';
 
 export function Login() {
   const [username, setUsername] = useState('admin');
@@ -112,13 +113,10 @@ export function Login() {
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Brand Header */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center z-10">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-black text-xl shadow-lg shadow-emerald-500/20 mb-4 ring-4 ring-emerald-500/20">
-          360
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center z-10 mb-2">
+        <div className="flex justify-center mb-3">
+          <Logo variant="dark" size="xl" className="h-16 w-auto drop-shadow-lg" />
         </div>
-        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-          PEOPLEPAY<span className="text-emerald-400">360</span>
-        </h2>
         <p className="mt-1 text-xs sm:text-sm text-slate-400 font-medium">
           Connected Enterprise HR & Payroll Management Platform
         </p>

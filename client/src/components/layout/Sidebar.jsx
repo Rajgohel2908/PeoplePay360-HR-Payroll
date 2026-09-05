@@ -18,6 +18,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../ui/Logo';
 
 export function Sidebar({ collapsed, onToggle }) {
   const { user, isEmployeeOnly } = useAuth();
@@ -65,17 +66,12 @@ export function Sidebar({ collapsed, onToggle }) {
       `}
     >
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800 bg-slate-950/40">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800 bg-slate-950/40">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white font-black text-sm shadow-md shrink-0">
-            360
-          </div>
-          {!collapsed && (
-            <div className="truncate">
-              <span className="text-sm font-black tracking-wider text-white">PEOPLEPAY</span>
-              <span className="text-xs font-bold text-emerald-400 ml-1">360</span>
-              <p className="text-[10px] text-slate-400 font-medium tracking-tight">HR & Payroll Platform</p>
-            </div>
+          {collapsed ? (
+            <Logo variant="icon" size="sm" className="shrink-0" />
+          ) : (
+            <Logo variant="dark" size="sm" className="shrink-0 max-h-9" />
           )}
         </div>
 
