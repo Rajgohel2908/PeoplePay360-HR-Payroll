@@ -18,7 +18,7 @@ router.use(authenticateToken);
 
 router.get('/departments', getDepartments);
 router.get('/', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER, ROLES.HR_PAYROLL_USER]), getEmployees);
-router.post('/', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER]), createEmployee);
+router.post('/', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER, ROLES.HR_PAYROLL_USER]), createEmployee);
 
 router.get('/360/:id', requireSelfOrHR('id'), getEmployee360);
 router.get('/:id', requireSelfOrHR('id'), getEmployeeById);

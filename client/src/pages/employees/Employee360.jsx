@@ -21,7 +21,9 @@ import {
   ExternalLink,
   Edit2,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Key,
+  Lock
 } from 'lucide-react';
 import api from '../../api/client';
 import { Card, StatCard } from '../../components/ui/Card';
@@ -42,9 +44,16 @@ export function Employee360() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [pwdLoading, setPwdLoading] = useState(false);
 
   const { showSuccess, showError } = useNotifications();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const navigate = useNavigate();
 
   const loadEmployee360 = async () => {
@@ -116,6 +125,32 @@ export function Employee360() {
     }
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.new_password.length < 6) {
+      showError('New password must be at least 6 characters in length.');
+      return;
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      showError('New passwords do not match. Please re-enter.');
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      const res = await api.put('/auth/change-password', {
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password
+      });
+      showSuccess(res.message || 'Password changed successfully!');
+      setShowPasswordModal(false);
+      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+    } catch (err) {
+      showError(err.message || 'Failed to change password. Check your current password.');
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'personal', label: 'Personal & Statutory', icon: FileText },
@@ -129,19 +164,31 @@ export function Employee360() {
   const formatCurrency = (val) => `₹${parseFloat(val || 0).toLocaleString('en-IN')}`;
 
   const isMissingBank = !employee.bank_name || !employee.account_number;
+  const isSelf = String(user?.employee_id) === String(employee.id);
 
   return (
     <div className="space-y-6">
       {/* Top Breadcrumb & Back Navigation */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate('/employees')}
+          onClick={() => navigate(hasRole(['admin', 'hr_manager']) ? '/employees' : '/ess')}
           className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-emerald-700 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Employee Directory
+          <ArrowLeft className="w-4 h-4" /> {hasRole(['admin', 'hr_manager']) ? 'Back to Employee Directory' : 'Back to Self-Service'}
         </button>
 
         <div className="flex items-center gap-2">
+          {(isSelf || hasRole(['admin'])) && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Key}
+              onClick={() => setShowPasswordModal(true)}
+            >
+              Change Password
+            </Button>
+          )}
+
           {hasRole(['admin', 'hr_manager', 'payroll_manager']) && (
             <Button
               variant="outline"
@@ -664,6 +711,68 @@ export function Employee360() {
             </Button>
             <Button type="submit" variant="primary">
               Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* In-App Change Password Modal */}
+      <Modal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+        }}
+        title="Change Account Password"
+        subtitle="Update your user login credentials"
+        size="md"
+      >
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <Input
+            label="Current Password"
+            type="password"
+            required
+            icon={Lock}
+            value={passwordForm.current_password}
+            onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+            placeholder="Enter your current password"
+          />
+
+          <Input
+            label="New Password"
+            type="password"
+            required
+            icon={Key}
+            value={passwordForm.new_password}
+            onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+            placeholder="Minimum 6 characters"
+          />
+
+          <Input
+            label="Confirm New Password"
+            type="password"
+            required
+            icon={Key}
+            value={passwordForm.confirm_password}
+            onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+            placeholder="Re-enter new password"
+          />
+
+          <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowPasswordModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={pwdLoading}
+              icon={<CheckCircle2 className="w-4 h-4" />}
+            >
+              Update Password
             </Button>
           </div>
         </form>

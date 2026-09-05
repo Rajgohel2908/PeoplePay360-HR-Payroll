@@ -45,15 +45,23 @@ export function TimeOffDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'ledger'
 
-  const { showSuccess, showError } = useNotifications();
-  const { user, hasRole, isEmployeeOnly } = useAuth();
   const navigate = useNavigate();
+
+  const getLocalTodayString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = getLocalTodayString();
 
   const [formData, setFormData] = useState({
     employee_id: '',
     leave_type_id: 1,
-    start_date: new Date().toISOString().split('T')[0],
-    end_date: new Date().toISOString().split('T')[0],
+    start_date: today,
+    end_date: today,
     duration_days: 1.0,
     reason: 'Personal time off'
   });
@@ -106,6 +114,18 @@ export function TimeOffDashboard() {
 
   const handleSubmitRequest = async (e) => {
     e.preventDefault();
+
+    const currentToday = getLocalTodayString();
+    if (formData.start_date < currentToday) {
+      showError('Start date cannot be in the past. Please select today or a future date.');
+      return;
+    }
+
+    if (formData.end_date < formData.start_date) {
+      showError('End date cannot be earlier than start date.');
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
@@ -483,7 +503,15 @@ export function TimeOffDashboard() {
             variant="primary"
             size="sm"
             icon={Plus}
-            onClick={() => setShowRequestModal(true)}
+            onClick={() => {
+              const currentToday = getLocalTodayString();
+              setFormData((prev) => ({
+                ...prev,
+                start_date: !prev.start_date || prev.start_date < currentToday ? currentToday : prev.start_date,
+                end_date: !prev.end_date || prev.end_date < currentToday ? currentToday : prev.end_date
+              }));
+              setShowRequestModal(true);
+            }}
           >
             Request Time Off
           </Button>
@@ -773,13 +801,27 @@ export function TimeOffDashboard() {
               label="Start Date"
               type="date"
               required
+              min={getLocalTodayString()}
               value={formData.start_date}
-              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+              onChange={(e) => {
+                const newStart = e.target.value;
+                const currentToday = getLocalTodayString();
+                if (newStart < currentToday) {
+                  showError('Start date cannot be in the past.');
+                  return;
+                }
+                setFormData((prev) => ({
+                  ...prev,
+                  start_date: newStart,
+                  end_date: prev.end_date && prev.end_date < newStart ? newStart : prev.end_date
+                }));
+              }}
             />
             <Input
               label="End Date"
               type="date"
               required
+              min={formData.start_date || getLocalTodayString()}
               value={formData.end_date}
               onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
             />

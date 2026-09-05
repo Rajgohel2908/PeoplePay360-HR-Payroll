@@ -21,6 +21,7 @@ import { Card, StatCard } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { QuickAttendanceWidget } from '../../components/attendance/QuickAttendanceWidget';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -167,15 +168,43 @@ export function AttendanceList() {
     {
       header: 'Check In / Out',
       accessor: 'check_in',
-      cell: (row) => (
-        <div className="text-xs font-mono">
-          <span className="text-emerald-700 font-semibold">{row.check_in || '--:--'}</span>
-          <span className="text-slate-400 mx-1.5">&rarr;</span>
-          <span className={row.check_out ? 'text-slate-800 font-semibold' : 'text-red-500 font-bold'}>
-            {row.check_out || 'Missing Out'}
-          </span>
-        </div>
-      )
+      cell: (row) => {
+        const sessions = row.sessions || [];
+        const isMultiple = sessions.length > 1;
+        const hasActiveSession = sessions.some((s) => !s.out);
+
+        return (
+          <div className="text-xs">
+            <div className="font-mono flex items-center gap-1.5">
+              <span className="text-emerald-700 font-semibold">{row.check_in || '--:--'}</span>
+              <span className="text-slate-400">&rarr;</span>
+              {row.check_out ? (
+                <span className="text-slate-800 font-semibold">{row.check_out}</span>
+              ) : hasActiveSession ? (
+                <span className="text-emerald-600 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Active
+                </span>
+              ) : (
+                <span className="text-red-500 font-bold">Missing Out</span>
+              )}
+              {isMultiple && (
+                <span
+                  className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200"
+                  title={sessions.map((s) => `${s.in} - ${s.out || 'Active'}`).join(', ')}
+                >
+                  {sessions.length} sessions
+                </span>
+              )}
+            </div>
+            {isMultiple && (
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                {sessions.map((s) => `${s.in}–${s.out || '...'}`).join(' | ')}
+              </div>
+            )}
+          </div>
+        );
+      }
     },
     {
       header: 'Worked / Overtime',
@@ -239,14 +268,7 @@ export function AttendanceList() {
 
         <div className="flex items-center gap-3">
           {/* Quick Check-In / Check-Out Widget */}
-          <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-            <Button variant="primary" size="sm" icon={LogIn} onClick={handleSelfCheckIn}>
-              Check In
-            </Button>
-            <Button variant="secondary" size="sm" icon={LogOut} onClick={handleSelfCheckOut}>
-              Check Out
-            </Button>
-          </div>
+          <QuickAttendanceWidget onAttendanceChange={loadAttendance} />
 
           {hasRole(['admin', 'hr_manager']) && (
             <Button

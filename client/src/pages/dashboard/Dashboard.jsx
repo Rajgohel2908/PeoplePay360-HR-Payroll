@@ -78,6 +78,8 @@ export function Dashboard() {
   const [periodFilter, setPeriodFilter] = useState('2026');
   const navigate = useNavigate();
 
+  const isHrManager = user?.role === 'hr_manager';
+
   useEffect(() => {
     async function loadDashboard() {
       setLoading(true);
@@ -121,41 +123,43 @@ export function Dashboard() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Executive HR & Payroll Dashboard
+                {isHrManager ? 'HR Operations Dashboard' : 'Executive HR & Payroll Dashboard'}
               </h1>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 uppercase tracking-wider">
                 {user?.role?.replace('_', ' ')}
               </span>
             </div>
             <p className="text-xs text-slate-600 font-medium mt-0.5">
-              Welcome back, <span className="font-bold text-slate-900">{user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username}</span> &bull; Real-time financial disbursements, contract statuses, and pre-flight payroll health
+              Welcome back, <span className="font-bold text-slate-900">{user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username}</span> &bull; {isHrManager ? 'Employee headcount, contract lifecycle, and attendance monitoring' : 'Real-time financial disbursements, contract statuses, and pre-flight payroll health'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0 w-full md:w-auto justify-end">
-          <select
-            value={periodFilter}
-            onChange={(e) => setPeriodFilter(e.target.value)}
-            className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-xs"
-          >
-            <option value="2026">Payroll Year 2026</option>
-            <option value="2025">Payroll Year 2025</option>
-          </select>
+        {!isHrManager && (
+          <div className="flex items-center gap-3 shrink-0 w-full md:w-auto justify-end">
+            <select
+              value={periodFilter}
+              onChange={(e) => setPeriodFilter(e.target.value)}
+              className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-xs"
+            >
+              <option value="2026">Payroll Year 2026</option>
+              <option value="2025">Payroll Year 2025</option>
+            </select>
 
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/payroll/wizard')}
-            icon={IndianRupee}
-          >
-            New Payrun Wizard
-          </Button>
-        </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/payroll/wizard')}
+              icon={IndianRupee}
+            >
+              New Payrun Wizard
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Discreet Operational Alerts Routing Notice */}
-      {alerts && alerts.length > 0 && (
+      {/* Discreet Operational Alerts Routing Notice (Hidden for HR Manager) */}
+      {!isHrManager && alerts && alerts.length > 0 && (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 bg-white rounded-2xl border border-stone-200/90 shadow-xs">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
@@ -296,7 +300,9 @@ export function Dashboard() {
                 />
                 <Tooltip
                   formatter={(val) => [formatCurrency(val), '']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: 'none' }}
+                  labelStyle={{ color: '#94a3b8', fontSize: '11px', fontWeight: 500 }}
+                  itemStyle={{ color: '#ffffff', fontSize: '12px', fontWeight: 600 }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: '1px solid #334155' }}
                 />
                 <Area
                   type="monotone"
@@ -346,6 +352,7 @@ export function Dashboard() {
                   outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
+                  nameKey="name"
                   isAnimationActive={true}
                   animationDuration={1300}
                   animationEasing="ease-out"
@@ -356,7 +363,37 @@ export function Dashboard() {
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px', border: 'none' }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const sliceName = data.name || data.payload?.name || 'Shift Log';
+                      const sliceValue = data.value !== undefined ? data.value : (data.payload?.value || 0);
+                      const sliceColor = data.payload?.color || data.color || '#10b981';
+                      const total = attendanceDistData.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+                      const percentage = total > 0 ? ((Number(sliceValue) / total) * 100).toFixed(1) : 0;
+
+                      return (
+                        <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/90 px-3.5 py-2.5 rounded-xl shadow-2xl text-white pointer-events-none min-w-[150px]">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
+                              style={{ backgroundColor: sliceColor }}
+                            />
+                            <span className="text-xs font-bold text-slate-100">{sliceName}</span>
+                          </div>
+                          <div className="flex items-baseline justify-between gap-4 text-xs">
+                            <span className="text-slate-400 font-medium">Employees:</span>
+                            <span className="font-extrabold text-white text-sm">{sliceValue}</span>
+                          </div>
+                          <div className="flex items-baseline justify-between gap-4 text-[11px] pt-1 mt-1 border-t border-slate-800 text-slate-400">
+                            <span>Share:</span>
+                            <span className="font-semibold text-emerald-400">{percentage}%</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -388,7 +425,9 @@ export function Dashboard() {
                 <YAxis type="category" dataKey="department_name" stroke="#64748b" fontSize={11} width={110} tickLine={false} />
                 <Tooltip
                   formatter={(val) => [formatCurrency(val), 'Monthly Cost']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: 'none' }}
+                  labelStyle={{ color: '#94a3b8', fontSize: '11px', fontWeight: 500 }}
+                  itemStyle={{ color: '#ffffff', fontSize: '12px', fontWeight: 600 }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: '1px solid #334155' }}
                 />
                 <Bar
                   dataKey="total_salary_cost"
@@ -419,7 +458,9 @@ export function Dashboard() {
                 <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
                   formatter={(val) => [`${val} Days`, 'Total Taken']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: 'none' }}
+                  labelStyle={{ color: '#94a3b8', fontSize: '11px', fontWeight: 500 }}
+                  itemStyle={{ color: '#ffffff', fontSize: '12px', fontWeight: 600 }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: '1px solid #334155' }}
                 />
                 <Bar
                   dataKey="total_days_taken"

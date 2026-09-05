@@ -61,15 +61,19 @@ export function Sidebar({ collapsed, onToggle }) {
   return (
     <aside
       className={`
-        bg-white text-slate-800 flex flex-col border-r border-stone-200/90 transition-all duration-300 shrink-0 z-30 shadow-xs
+        bg-white text-slate-800 flex flex-col border-r border-stone-200/90 transition-all duration-300 shrink-0 z-30 shadow-xs relative
         ${collapsed ? 'w-20' : 'w-[264px]'}
       `}
     >
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-stone-100 bg-white">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <div
+        className={`h-16 flex items-center border-b border-stone-100 bg-white transition-all duration-300 relative ${
+          collapsed ? 'justify-center px-2' : 'justify-between px-5'
+        }`}
+      >
+        <div className={`flex items-center ${collapsed ? 'justify-center shrink-0' : 'gap-3 overflow-hidden'}`}>
           {collapsed ? (
-            <Logo variant="icon" size="sm" showText={false} className="shrink-0" />
+            <Logo variant="icon" size="md" showText={false} className="shrink-0" />
           ) : (
             <Logo size="md" showText={true} className="shrink-0 max-h-9" />
           )}
@@ -77,10 +81,14 @@ export function Sidebar({ collapsed, onToggle }) {
 
         <button
           onClick={onToggle}
-          className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-stone-100 transition-colors"
+          className={`hidden lg:flex items-center justify-center text-slate-500 hover:text-emerald-700 transition-all ${
+            collapsed
+              ? 'absolute -right-3 top-5 w-6 h-6 rounded-full bg-white border border-stone-200 shadow-sm hover:scale-110 z-40'
+              : 'p-1.5 rounded-lg hover:bg-stone-100'
+          }`}
           title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
 

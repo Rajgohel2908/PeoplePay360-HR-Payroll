@@ -112,6 +112,15 @@ async function submitRequest(req, res, next) {
       });
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (req.user.role === ROLES.EMPLOYEE && start_date < todayStr) {
+      return res.status(400).json({
+        success: false,
+        code: 'PAST_DATE_NOT_ALLOWED',
+        message: 'Start date cannot be in the past. Please select today or a future date.'
+      });
+    }
+
     // Check overlap with existing active requests
     const overlapping = await db('time_off_requests')
       .where('employee_id', employeeId)

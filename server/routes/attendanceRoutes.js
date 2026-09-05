@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getAttendance,
+  getTodayAttendance,
   checkIn,
   checkOut,
   correctAttendance
@@ -14,6 +15,7 @@ const { ROLES } = require('../config/constants');
 router.use(authenticateToken);
 
 router.get('/', getAttendance);
+router.get('/today', getTodayAttendance);
 router.post('/check-in', checkIn);
 router.post('/check-out', checkOut);
 router.post('/correct/:id', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER]), correctAttendance);

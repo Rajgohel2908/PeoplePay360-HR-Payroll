@@ -84,9 +84,17 @@ async function getAttendance(req, res, next) {
       )
       .first();
 
+    const formattedRecords = records.map((rec) => {
+      const { sessions } = parseSessions(rec.notes, rec.check_in, rec.check_out);
+      return {
+        ...rec,
+        sessions
+      };
+    });
+
     res.json({
       success: true,
-      data: records,
+      data: formattedRecords,
       stats: {
         present: parseInt(stats?.present_count || 0, 10),
         late: parseInt(stats?.late_count || 0, 10),
@@ -107,9 +115,126 @@ async function getAttendance(req, res, next) {
   }
 }
 
+/**
+ * Helper: parse sessions from notes JSON or fallback to check_in/check_out columns
+ */
+function parseSessions(notesStr, defaultCheckIn, defaultCheckOut) {
+  let sessions = [];
+  let userNotes = '';
+  if (notesStr) {
+    try {
+      const parsed = JSON.parse(notesStr);
+      if (Array.isArray(parsed?.sessions)) {
+        sessions = parsed.sessions;
+        userNotes = parsed.userNotes || '';
+      } else {
+        userNotes = typeof notesStr === 'string' ? notesStr : '';
+      }
+    } catch (e) {
+      userNotes = typeof notesStr === 'string' ? notesStr : '';
+    }
+  }
+  if (sessions.length === 0 && defaultCheckIn) {
+    sessions.push({ in: defaultCheckIn, out: defaultCheckOut || null });
+  }
+  return { sessions, userNotes };
+}
+
+/**
+ * Helper: calculate duration between two HH:MM strings in minutes
+ */
+function calculateSessionMinutes(inTime, outTime) {
+  if (!inTime || !outTime) return 0;
+  const [inH, inM] = inTime.split(':').map(Number);
+  const [outH, outM] = outTime.split(':').map(Number);
+  let diff = (outH * 60 + outM) - (inH * 60 + inM);
+  if (diff < 0) diff += 24 * 60;
+  return Math.max(0, diff);
+}
+
+/**
+ * Helper: calculate total accumulated hours from closed sessions
+ */
+function calculateTotalWorkedHours(sessions) {
+  const totalMins = sessions.reduce((acc, s) => {
+    return s.out ? acc + calculateSessionMinutes(s.in, s.out) : acc;
+  }, 0);
+  return Math.round((totalMins / 60) * 10) / 10;
+}
+
+/**
+ * Returns today's active session and attendance status for the current employee
+ */
+async function getTodayAttendance(req, res, next) {
+  try {
+    const employeeId = req.query.employee_id || req.user.employee_id;
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        code: 'EMPLOYEE_REQUIRED',
+        message: 'No employee ID associated with this account or request.'
+      });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const record = await db('attendance')
+      .where('employee_id', employeeId)
+      .where('date', today)
+      .first();
+
+    if (!record) {
+      return res.json({
+        success: true,
+        data: {
+          date: today,
+          hasRecord: false,
+          isCheckedIn: false,
+          currentSession: null,
+          firstCheckIn: null,
+          latestCheckOut: null,
+          totalWorkedHours: 0,
+          overtimeHours: 0,
+          sessions: [],
+          record: null
+        }
+      });
+    }
+
+    const { sessions } = parseSessions(record.notes, record.check_in, record.check_out);
+    const activeSession = sessions.find(s => !s.out);
+
+    return res.json({
+      success: true,
+      data: {
+        date: today,
+        hasRecord: true,
+        isCheckedIn: !!activeSession,
+        currentSession: activeSession || null,
+        firstCheckIn: record.check_in,
+        latestCheckOut: record.check_out,
+        totalWorkedHours: parseFloat(record.worked_hours || 0),
+        overtimeHours: parseFloat(record.overtime_hours || 0),
+        status: record.status,
+        sessions,
+        record
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function checkIn(req, res, next) {
   try {
-    const employeeId = req.user.role === ROLES.EMPLOYEE ? req.user.employee_id : req.body.employee_id;
+    const employeeId = req.body.employee_id || req.user.employee_id;
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        code: 'EMPLOYEE_REQUIRED',
+        message: 'No employee ID associated with this account or request.'
+      });
+    }
+
     const today = new Date().toISOString().split('T')[0];
     const currentTime = new Date().toTimeString().slice(0, 5); // HH:MM
 
@@ -118,38 +243,83 @@ async function checkIn(req, res, next) {
       .where('date', today)
       .first();
 
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        code: 'ALREADY_CHECKED_IN',
-        message: 'Attendance record already exists for today.'
+    if (!existing) {
+      // First check-in of the day
+      const [hours, minutes] = currentTime.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes;
+      const standardStart = 9 * 60 + 15; // 09:15 AM
+      const isLate = totalMinutes > standardStart;
+      const lateMins = isLate ? totalMinutes - (9 * 60) : 0;
+
+      const initialSessions = [{ in: currentTime, out: null }];
+      const notesPayload = JSON.stringify({
+        sessions: initialSessions,
+        userNotes: ''
+      });
+
+      const [newId] = await db('attendance').insert({
+        employee_id: employeeId,
+        date: today,
+        check_in: currentTime,
+        check_out: null,
+        worked_hours: 0,
+        expected_hours: 8.0,
+        overtime_hours: 0,
+        late_minutes: lateMins,
+        status: isLate ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT,
+        source: 'Web Self-Service',
+        notes: notesPayload
+      }).returning('id');
+
+      const recordId = newId?.id || newId;
+      const createdRecord = await db('attendance').where('id', recordId).first();
+
+      return res.status(201).json({
+        success: true,
+        message: `Checked in successfully at ${currentTime}${isLate ? ` (${lateMins} mins late)` : ''}.`,
+        data: {
+          ...createdRecord,
+          sessions: initialSessions,
+          isCheckedIn: true
+        }
       });
     }
 
-    // Determine if late (after 09:15)
-    const [hours, minutes] = currentTime.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
-    const standardStart = 9 * 60 + 15; // 09:15 AM
-    const isLate = totalMinutes > standardStart;
-    const lateMins = isLate ? totalMinutes - (9 * 60) : 0;
+    // Existing record exists for today
+    const { sessions, userNotes } = parseSessions(existing.notes, existing.check_in, existing.check_out);
+    const activeSession = sessions.find(s => !s.out);
 
-    const [newId] = await db('attendance').insert({
-      employee_id: employeeId,
-      date: today,
-      check_in: currentTime,
-      check_out: null,
-      worked_hours: 0,
-      expected_hours: 8.0,
-      overtime_hours: 0,
-      late_minutes: lateMins,
-      status: isLate ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT,
-      source: 'Web Self-Service'
-    }).returning('id');
+    if (activeSession) {
+      return res.status(400).json({
+        success: false,
+        code: 'ALREADY_CHECKED_IN',
+        message: `Already checked in at ${activeSession.in}. Please check out before starting a new session.`
+      });
+    }
 
-    res.status(201).json({
+    // Add new session for re-checkin
+    sessions.push({ in: currentTime, out: null });
+    const notesPayload = JSON.stringify({ sessions, userNotes });
+
+    await db('attendance')
+      .where('id', existing.id)
+      .update({
+        check_out: null, // actively in progress
+        notes: notesPayload,
+        status: existing.status === ATTENDANCE_STATUS.MISSING_CHECKOUT ? ATTENDANCE_STATUS.PRESENT : existing.status,
+        updated_at: new Date()
+      });
+
+    const updatedRecord = await db('attendance').where('id', existing.id).first();
+
+    return res.json({
       success: true,
-      message: `Checked in successfully at ${currentTime}${isLate ? ` (${lateMins} mins late)` : ''}.`,
-      data: await db('attendance').where('id', newId?.id || newId).first()
+      message: `Checked in again at ${currentTime} (Session #${sessions.length}). Worked so far today: ${existing.worked_hours || 0}h.`,
+      data: {
+        ...updatedRecord,
+        sessions,
+        isCheckedIn: true
+      }
     });
   } catch (err) {
     next(err);
@@ -158,7 +328,15 @@ async function checkIn(req, res, next) {
 
 async function checkOut(req, res, next) {
   try {
-    const employeeId = req.user.role === ROLES.EMPLOYEE ? req.user.employee_id : req.body.employee_id;
+    const employeeId = req.body.employee_id || req.user.employee_id;
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        code: 'EMPLOYEE_REQUIRED',
+        message: 'No employee ID associated with this account or request.'
+      });
+    }
+
     const today = new Date().toISOString().split('T')[0];
     const currentTime = new Date().toTimeString().slice(0, 5); // HH:MM
 
@@ -175,42 +353,59 @@ async function checkOut(req, res, next) {
       });
     }
 
-    if (record.check_out) {
+    const { sessions, userNotes } = parseSessions(record.notes, record.check_in, record.check_out);
+    const activeSessionIndex = sessions.findIndex(s => !s.out);
+
+    if (activeSessionIndex === -1) {
       return res.status(400).json({
         success: false,
         code: 'ALREADY_CHECKED_OUT',
-        message: `Already checked out at ${record.check_out}.`
+        message: `Already checked out at ${record.check_out || 'earlier'}. Click Check In to start a new session.`
       });
     }
 
-    // Calculate worked hours
-    const [inH, inM] = record.check_in.split(':').map(Number);
-    const [outH, outM] = currentTime.split(':').map(Number);
-    const totalWorkedMins = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM) - 60); // minus 1h break
-    const workedHours = Math.round((totalWorkedMins / 60) * 10) / 10;
-    const overtimeHours = workedHours > 8.0 ? Math.round((workedHours - 8.0) * 10) / 10 : 0;
+    // Close the active session
+    sessions[activeSessionIndex].out = currentTime;
+    const sessionMins = calculateSessionMinutes(sessions[activeSessionIndex].in, currentTime);
+    const sessionHours = Math.round((sessionMins / 60) * 10) / 10;
+
+    // Recalculate total worked hours across all sessions completed today
+    const workedHours = calculateTotalWorkedHours(sessions);
+    const expectedHours = parseFloat(record.expected_hours || 8.0);
+    const overtimeHours = workedHours > expectedHours ? Math.round((workedHours - expectedHours) * 10) / 10 : 0;
 
     let status = record.status;
     if (overtimeHours > 0) {
       status = ATTENDANCE_STATUS.OVERTIME;
-    } else if (workedHours < 5) {
+    } else if (workedHours < 5.0) {
       status = ATTENDANCE_STATUS.HALF_DAY;
+    } else {
+      status = record.late_minutes > 0 ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT;
     }
+
+    const notesPayload = JSON.stringify({ sessions, userNotes });
 
     await db('attendance')
       .where('id', record.id)
       .update({
-        check_out: currentTime,
+        check_out: currentTime, // latest checkout time
         worked_hours: workedHours,
         overtime_hours: overtimeHours,
         status: status,
+        notes: notesPayload,
         updated_at: new Date()
       });
 
-    res.json({
+    const updatedRecord = await db('attendance').where('id', record.id).first();
+
+    return res.json({
       success: true,
-      message: `Checked out at ${currentTime}. Total worked: ${workedHours}h (Overtime: ${overtimeHours}h).`,
-      data: await db('attendance').where('id', record.id).first()
+      message: `Checked out at ${currentTime}. Session: ${sessionHours}h. Total worked today: ${workedHours}h (Overtime: ${overtimeHours}h).`,
+      data: {
+        ...updatedRecord,
+        sessions,
+        isCheckedIn: false
+      }
     });
   } catch (err) {
     next(err);
@@ -254,6 +449,11 @@ async function correctAttendance(req, res, next) {
     }
 
     if (record) {
+      const correctionNotes = JSON.stringify({
+        sessions: check_in && check_out ? [{ in: check_in, out: check_out }] : [],
+        userNotes: correction_reason
+      });
+
       await db('attendance')
         .where('id', id)
         .update({
@@ -262,6 +462,7 @@ async function correctAttendance(req, res, next) {
           worked_hours: workedHours,
           overtime_hours: overtimeHours,
           status: status || ATTENDANCE_STATUS.MANUAL_CORRECTION,
+          notes: correctionNotes,
           corrected_by: req.user.id,
           correction_reason: correction_reason,
           updated_at: new Date()
@@ -288,6 +489,11 @@ async function correctAttendance(req, res, next) {
     } else {
       // Manual new entry
       const employeeId = req.body.employee_id;
+      const correctionNotes = JSON.stringify({
+        sessions: check_in && check_out ? [{ in: check_in, out: check_out }] : [],
+        userNotes: correction_reason
+      });
+
       const [newId] = await db('attendance').insert({
         employee_id: employeeId,
         date: date,
@@ -298,6 +504,7 @@ async function correctAttendance(req, res, next) {
         overtime_hours: overtimeHours,
         status: status || ATTENDANCE_STATUS.PRESENT,
         source: 'Manual HR Entry',
+        notes: correctionNotes,
         corrected_by: req.user.id,
         correction_reason: correction_reason
       }).returning('id');
@@ -327,6 +534,7 @@ async function correctAttendance(req, res, next) {
 
 module.exports = {
   getAttendance,
+  getTodayAttendance,
   checkIn,
   checkOut,
   correctAttendance

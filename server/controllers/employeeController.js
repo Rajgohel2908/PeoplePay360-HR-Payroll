@@ -244,17 +244,72 @@ async function createEmployee(req, res, next) {
   try {
     const data = req.body;
 
+    // Field validations
+    if (!data.employee_id || !data.employee_id.trim()) {
+      return res.status(400).json({ success: false, message: 'Employee ID is required.' });
+    }
+    if (!data.first_name || !data.first_name.trim()) {
+      return res.status(400).json({ success: false, message: 'First name is required.' });
+    }
+    if (!data.last_name || !data.last_name.trim()) {
+      return res.status(400).json({ success: false, message: 'Last name is required.' });
+    }
+    if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+      return res.status(400).json({ success: false, message: 'Valid corporate email address is required.' });
+    }
+    if (!data.phone || !data.phone.trim()) {
+      return res.status(400).json({ success: false, message: 'Phone number is required.' });
+    }
+    if (!data.date_of_birth) {
+      return res.status(400).json({ success: false, message: 'Date of birth is required.' });
+    }
+    if (!data.joining_date) {
+      return res.status(400).json({ success: false, message: 'Joining date is required.' });
+    }
+    if (!data.department_id) {
+      return res.status(400).json({ success: false, message: 'Department selection is required.' });
+    }
+    if (!data.job_position_id) {
+      return res.status(400).json({ success: false, message: 'Job designation selection is required.' });
+    }
+    if (!data.wage || isNaN(data.wage) || Number(data.wage) <= 0) {
+      return res.status(400).json({ success: false, message: 'Monthly base wage must be greater than 0.' });
+    }
+    if (!data.bank_name || !data.bank_name.trim()) {
+      return res.status(400).json({ success: false, message: 'Bank name is required.' });
+    }
+    if (!data.account_number || !data.account_number.trim()) {
+      return res.status(400).json({ success: false, message: 'Bank account number is required.' });
+    }
+    if (!data.ifsc_code || !data.ifsc_code.trim()) {
+      return res.status(400).json({ success: false, message: 'Bank IFSC code is required.' });
+    }
+    if (!data.pan_number || !data.pan_number.trim()) {
+      return res.status(400).json({ success: false, message: 'PAN card number is required.' });
+    }
+    if (!data.emergency_name || !data.emergency_name.trim()) {
+      return res.status(400).json({ success: false, message: 'Emergency contact name is required.' });
+    }
+    if (!data.emergency_phone || !data.emergency_phone.trim()) {
+      return res.status(400).json({ success: false, message: 'Emergency contact phone number is required.' });
+    }
+    if (!data.emergency_relation || !data.emergency_relation.trim()) {
+      return res.status(400).json({ success: false, message: 'Relationship with emergency contact is required.' });
+    }
+
     // Check unique employee_id and email
     const existing = await db('employees')
-      .where('employee_id', data.employee_id)
-      .orWhere('email', data.email)
+      .where('employee_id', data.employee_id.trim())
+      .orWhere('email', data.email.trim())
       .first();
 
     if (existing) {
       return res.status(400).json({
         success: false,
         code: 'DUPLICATE_EMPLOYEE',
-        message: 'Employee with this Employee ID or Email address already exists.'
+        message: existing.employee_id === data.employee_id.trim()
+          ? `Employee ID "${data.employee_id}" already exists.`
+          : `Email address "${data.email}" already exists.`
       });
     }
 
@@ -514,7 +569,8 @@ async function deleteEmployee(req, res, next) {
 async function getDepartments(req, res, next) {
   try {
     const departments = await db('departments').orderBy('name', 'asc');
-    res.json({ success: true, data: departments });
+    const jobPositions = await db('job_positions').orderBy('title', 'asc');
+    res.json({ success: true, data: departments, job_positions: jobPositions });
   } catch (err) {
     next(err);
   }
