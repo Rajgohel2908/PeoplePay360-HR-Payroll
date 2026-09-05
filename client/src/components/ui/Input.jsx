@@ -40,7 +40,7 @@ export const Input = forwardRef(({
           required={required}
           className={`
             block w-full rounded-lg border text-sm transition-colors duration-150
-            py-2.5 ${Icon ? 'pl-9 pr-3' : 'px-3.5'}
+            py-2.5 ${icon ? 'pl-9 pr-3' : 'px-3.5'}
             ${error
               ? 'border-red-400 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500'
               : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
