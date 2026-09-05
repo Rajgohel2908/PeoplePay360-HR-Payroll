@@ -54,7 +54,7 @@ export function Sidebar({ collapsed, onToggle }) {
           section: 'ANALYTICS & ADMIN'
         },
         { title: 'Reports', path: '/reports', icon: FileBarChart2 },
-        { title: 'Audit Trail', path: '/admin/audit', icon: ShieldCheck, roles: ['admin', 'payroll_manager'] },
+        { title: 'Audit Trail', path: '/admin/audit', icon: ShieldCheck, roles: ['admin'] },
         { title: 'User Management', path: '/admin/users', icon: Settings, roles: ['admin'] }
       ];
 
