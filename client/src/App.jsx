@@ -7,6 +7,7 @@ import SkeletonLoader from './components/ui/SkeletonLoader';
 
 // Pages
 import Login from './pages/auth/Login';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Dashboard from './pages/dashboard/Dashboard';
 import EmployeeList from './pages/employees/EmployeeList';
 import Employee360 from './pages/employees/Employee360';
@@ -82,8 +83,9 @@ function IndexRedirect() {
 export function App() {
   return (
     <Routes>
-      {/* Public Authentication Route */}
+      {/* Public Authentication Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Authenticated Application Wrapper */}
       <Route

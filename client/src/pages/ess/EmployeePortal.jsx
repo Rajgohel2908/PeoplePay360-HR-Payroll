@@ -13,7 +13,10 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Key,
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
 import api from '../../api/client';
 import { Card, StatCard } from '../../components/ui/Card';
@@ -30,6 +33,13 @@ export function EmployeePortal() {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [pwdLoading, setPwdLoading] = useState(false);
   const [types, setTypes] = useState([]);
 
   const { showSuccess, showError } = useNotifications();
@@ -42,6 +52,32 @@ export function EmployeePortal() {
     duration_days: 1.0,
     reason: 'Personal time off'
   });
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.new_password.length < 6) {
+      showError('New password must be at least 6 characters in length.');
+      return;
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      showError('New passwords do not match. Please re-enter.');
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      const res = await api.put('/auth/change-password', {
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password
+      });
+      showSuccess(res.message || 'Password changed successfully!');
+      setShowPasswordModal(false);
+      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+    } catch (err) {
+      showError(err.message || 'Failed to change password. Check your current password.');
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
   const loadESSData = async () => {
     setLoading(true);
@@ -158,13 +194,25 @@ export function EmployeePortal() {
           </div>
         </div>
 
-        {/* Interactive Check-In / Out Widget */}
-        <div className="flex items-center gap-2 bg-white/90 p-2 rounded-xl border border-sky-200/80 shadow-xs">
-          <Button variant="primary" size="sm" icon={LogIn} onClick={handleCheckIn}>
-            Check In
-          </Button>
-          <Button variant="secondary" size="sm" icon={LogOut} onClick={handleCheckOut}>
-            Check Out
+        {/* Actions: Attendance & Account Security */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 bg-white/90 p-1.5 rounded-xl border border-sky-200/80 shadow-xs">
+            <Button variant="primary" size="sm" icon={LogIn} onClick={handleCheckIn}>
+              Check In
+            </Button>
+            <Button variant="secondary" size="sm" icon={LogOut} onClick={handleCheckOut}>
+              Check Out
+            </Button>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            icon={Key}
+            onClick={() => setShowPasswordModal(true)}
+            className="bg-white/90 border-sky-200/80 hover:bg-white text-slate-700 shadow-xs py-2"
+          >
+            Change Password
           </Button>
         </div>
       </div>
@@ -357,6 +405,68 @@ export function EmployeePortal() {
             </Button>
             <Button type="submit" variant="primary">
               Submit Request
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* In-App Change Password Modal */}
+      <Modal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+        }}
+        title="Change Account Password"
+        subtitle="Update your employee portal credentials"
+        size="md"
+      >
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <Input
+            label="Current Password"
+            type="password"
+            required
+            icon={Lock}
+            value={passwordForm.current_password}
+            onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+            placeholder="Enter your current password"
+          />
+
+          <Input
+            label="New Password"
+            type="password"
+            required
+            icon={Key}
+            value={passwordForm.new_password}
+            onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+            placeholder="Minimum 6 characters"
+          />
+
+          <Input
+            label="Confirm New Password"
+            type="password"
+            required
+            icon={Key}
+            value={passwordForm.confirm_password}
+            onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+            placeholder="Re-enter new password"
+          />
+
+          <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowPasswordModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={pwdLoading}
+              icon={<CheckCircle2 className="w-4 h-4" />}
+            >
+              Update Password
             </Button>
           </div>
         </form>

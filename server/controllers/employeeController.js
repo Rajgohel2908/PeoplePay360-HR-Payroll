@@ -1,6 +1,9 @@
 // server/controllers/employeeController.js
 const db = require('../database/connection');
+const bcrypt = require('bcryptjs');
 const { logAudit } = require('../services/auditService');
+const { generateRandomPassword } = require('../utils/passwordGenerator');
+const { sendWelcomeCredentialsEmail } = require('../services/emailService');
 
 async function getEmployees(req, res, next) {
   try {
@@ -330,6 +333,46 @@ async function createEmployee(req, res, next) {
       }
     }
 
+    // Provision user login account with random password
+    const tempPassword = generateRandomPassword(10);
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(tempPassword, salt);
+
+    const existingUser = await db('users').where('email', data.email).orWhere('username', data.email).first();
+    if (!existingUser) {
+      await db('users').insert({
+        username: data.email,
+        email: data.email,
+        password_hash: passwordHash,
+        role: 'employee',
+        employee_id: empDbId,
+        is_active: true
+      });
+    } else {
+      await db('users').where('id', existingUser.id).update({
+        employee_id: empDbId,
+        password_hash: passwordHash,
+        updated_at: new Date()
+      });
+    }
+
+    // Dispatch welcome email with credentials
+    const appUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    let emailSent = false;
+    try {
+      await sendWelcomeCredentialsEmail({
+        email: data.email,
+        name: `${data.first_name} ${data.last_name}`,
+        username: data.email,
+        tempPassword: tempPassword,
+        loginUrl: `${appUrl}/login`,
+        employeeId: empDbId
+      });
+      emailSent = true;
+    } catch (mailErr) {
+      console.error('Error sending onboarding credentials email:', mailErr);
+    }
+
     await logAudit({
       userId: req.user?.id,
       userName: req.user?.username,
@@ -337,8 +380,8 @@ async function createEmployee(req, res, next) {
       action: 'CREATE_EMPLOYEE',
       entity: 'Employee',
       entityId: empDbId,
-      newValues: JSON.stringify({ employee_id: data.employee_id, name: `${data.first_name} ${data.last_name}` }),
-      reason: 'Onboarded new employee',
+      newValues: JSON.stringify({ employee_id: data.employee_id, name: `${data.first_name} ${data.last_name}`, email: data.email }),
+      reason: 'Onboarded new employee and provisioned ESS account',
       ipAddress: req.ip
     });
 
@@ -346,8 +389,12 @@ async function createEmployee(req, res, next) {
 
     res.status(201).json({
       success: true,
-      message: 'Employee created successfully.',
-      data: createdEmp
+      message: 'Employee created successfully. Login credentials have been emailed directly and securely to the employee.',
+      data: createdEmp,
+      account_provisioned: {
+        email: data.email,
+        email_sent: emailSent
+      }
     });
   } catch (err) {
     next(err);
@@ -357,7 +404,6 @@ async function createEmployee(req, res, next) {
 async function updateEmployee(req, res, next) {
   try {
     const { id } = req.params;
-    const updateData = { ...req.body, updated_at: new Date() };
 
     const oldEmployee = await db('employees').where('id', id).first();
     if (!oldEmployee) {
@@ -368,10 +414,25 @@ async function updateEmployee(req, res, next) {
       });
     }
 
-    // Clean up fields that cannot be updated directly
-    delete updateData.id;
+    const allowedFields = [
+      'employee_id', 'first_name', 'last_name', 'email', 'phone',
+      'date_of_birth', 'gender', 'address', 'city', 'state',
+      'postal_code', 'country', 'emergency_name', 'emergency_phone',
+      'emergency_relation', 'department_id', 'job_position_id',
+      'manager_id', 'employee_type', 'employment_status',
+      'joining_date', 'exit_date', 'schedule_id', 'bank_name',
+      'account_number', 'ifsc_code', 'pan_number', 'uan_number',
+      'avatar_url', 'notes'
+    ];
 
-    await db('employees').where('id', id).update(updateData);
+    const cleanData = { updated_at: new Date() };
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) {
+        cleanData[key] = req.body[key];
+      }
+    }
+
+    await db('employees').where('id', id).update(cleanData);
 
     await logAudit({
       userId: req.user?.id,

@@ -1,6 +1,6 @@
 // client/src/pages/auth/Login.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { Button } from '../../components/ui/Button';
@@ -17,7 +17,11 @@ import {
   Calculator, 
   Users,
   FileCheck,
-  TrendingUp
+  TrendingUp,
+  Key,
+  Check,
+  AlertCircle,
+  HelpCircle
 } from 'lucide-react';
 
 export function Login() {
@@ -27,6 +31,8 @@ export function Login() {
   const { login, switchDemoRole } = useAuth();
   const { showError, showSuccess } = useNotifications();
   const navigate = useNavigate();
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -250,6 +256,16 @@ export function Login() {
                 placeholder="••••••••••••"
               />
 
+              <div className="flex items-center justify-between text-xs pt-0.5">
+                <span className="text-slate-400 text-[11px]">First time or forgot password?</span>
+                <Link
+                  to="/forgot-password"
+                  className="text-emerald-700 hover:text-emerald-800 font-semibold hover:underline cursor-pointer"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
               <div className="pt-2">
                 <Button
                   type="submit"
@@ -317,6 +333,7 @@ export function Login() {
         </div>
 
       </div>
+
     </div>
   );
 }

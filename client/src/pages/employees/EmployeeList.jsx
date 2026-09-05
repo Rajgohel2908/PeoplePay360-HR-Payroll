@@ -15,7 +15,10 @@ import {
   AlertCircle,
   Eye,
   Edit2,
-  Trash2
+  Trash2,
+  Copy,
+  Check,
+  Key
 } from 'lucide-react';
 import api from '../../api/client';
 import { DataTable } from '../../components/ui/DataTable';
@@ -40,6 +43,7 @@ export function EmployeeList() {
   const [departments, setDepartments] = useState([]);
   const [jobPositions, setJobPositions] = useState([]);
   const [schedules, setSchedules] = useState([]);
+  const [createdNotification, setCreatedNotification] = useState(null);
 
   const { showSuccess, showError } = useNotifications();
   const { hasRole } = useAuth();
@@ -129,6 +133,11 @@ export function EmployeeList() {
       if (res.success) {
         showSuccess(`Employee ${formData.first_name} ${formData.last_name} created successfully!`);
         setShowCreateModal(false);
+        setCreatedNotification({
+          name: `${formData.first_name} ${formData.last_name}`,
+          email: formData.email,
+          email_sent: res.account_provisioned?.email_sent ?? true
+        });
         loadEmployees();
       }
     } catch (err) {
@@ -624,6 +633,7 @@ export function EmployeeList() {
                   <p className="font-bold">Automated Onboarding Sequence:</p>
                   <p>&bull; An Active Contract #{`CNT-${formData.employee_id}`} with ₹{formData.wage} monthly wage will be initialized.</p>
                   <p>&bull; 2026 Annual Leave Allocations (Casual, Sick, Privilege) will be provisioned automatically.</p>
+                  <p>&bull; An Employee ESS login account will be generated with a secure random temporary password and emailed to {formData.email || 'the employee'}.</p>
                 </div>
               </div>
             )}
@@ -654,6 +664,73 @@ export function EmployeeList() {
             </div>
           </form>
         </div>
+      </Modal>
+
+      {/* Employee Account Provisioned Modal (Confidential) */}
+      <Modal
+        isOpen={!!createdNotification}
+        onClose={() => setCreatedNotification(null)}
+        title="Employee Account Created"
+        subtitle="Onboarding credentials sent directly to employee"
+        size="md"
+      >
+        {createdNotification && (
+          <div className="space-y-4">
+            <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-emerald-950">
+                  {createdNotification.name} has been enrolled!
+                </h4>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  An Employee Self-Service (ESS) user account was automatically provisioned and linked to this employee.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/70">
+                <span className="text-xs text-slate-500 font-medium">Corporate Email</span>
+                <span className="text-xs font-bold text-slate-800 font-mono">{createdNotification.email}</span>
+              </div>
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/70">
+                <span className="text-xs text-slate-500 font-medium">Temporary Credentials</span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  Emailed Privately
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-medium">Sign-In Portal Address</span>
+                <span className="text-xs font-mono font-medium text-emerald-700">/login</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-amber-950">
+                <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0" />
+                Confidential Security Notice:
+              </p>
+              <p className="leading-relaxed">
+                To uphold corporate privacy and strict security compliance, employee passwords are never displayed to managers. A cryptographically random temporary password and access instructions have been emailed directly to <strong>{createdNotification.email}</strong>.
+              </p>
+              <p className="pt-1 text-[11px] text-amber-800/90">
+                The employee can sign in immediately at <strong>/login</strong> and can change their password at any time via <em>"Forgot password?"</em> or from their ESS Portal.
+              </p>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Button
+                variant="primary"
+                onClick={() => setCreatedNotification(null)}
+              >
+                Understood
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

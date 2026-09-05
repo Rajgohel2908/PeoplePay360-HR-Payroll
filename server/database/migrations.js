@@ -135,8 +135,17 @@ async function runMigrations() {
       table.string('role').notNullable().references('id').inTable('roles');
       table.integer('employee_id').references('id').inTable('employees').onDelete('SET NULL');
       table.boolean('is_active').defaultTo(true);
+      table.string('reset_token');
+      table.datetime('reset_expires');
       table.timestamps(true, true);
     });
+  } else {
+    if (!(await db.schema.hasColumn('users', 'reset_token'))) {
+      await db.schema.alterTable('users', (table) => {
+        table.string('reset_token');
+        table.datetime('reset_expires');
+      });
+    }
   }
 
   // 10. Salary Structures
