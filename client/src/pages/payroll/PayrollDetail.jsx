@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   AlertCircle,
   TrendingUp,
-  Receipt,
   FileCheck
 } from 'lucide-react';
 import api from '../../api/client';

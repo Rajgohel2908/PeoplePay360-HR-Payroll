@@ -11,7 +11,6 @@ import {
   ArrowRight,
   AlertCircle,
   AlertTriangle,
-  Receipt,
   FileCheck
 } from 'lucide-react';
 import api from '../../api/client';

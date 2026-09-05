@@ -6,7 +6,7 @@ import {
   FileSignature,
   CalendarCheck,
   Palmtree,
-  Receipt,
+  ReceiptIndianRupee,
   FileText,
   ShieldCheck,
   Building,
@@ -98,7 +98,7 @@ export function Employee360() {
     { id: 'contracts', label: 'Contracts', icon: FileSignature, badge: contracts?.length },
     { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
     { id: 'timeoff', label: 'Time Off / Leave', icon: Palmtree, badge: timeOff?.requests?.length },
-    { id: 'payroll', label: 'Payroll & Payslips', icon: Receipt, badge: payslips?.length },
+    { id: 'payroll', label: 'Payroll & Payslips', icon: ReceiptIndianRupee, badge: payslips?.length },
     { id: 'audit', label: 'Audit Trail', icon: ShieldCheck, badge: auditLogs?.length }
   ];
 
@@ -238,7 +238,7 @@ export function Employee360() {
               title="Generated Payslips"
               value={`${payslips.length} Cycles`}
               subtitle="Confidential PDF records"
-              icon={Receipt}
+              icon={ReceiptIndianRupee}
               variant="purple"
             />
           </div>

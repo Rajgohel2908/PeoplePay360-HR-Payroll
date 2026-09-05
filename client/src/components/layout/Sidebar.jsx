@@ -9,7 +9,7 @@ import {
   CalendarCheck,
   Palmtree,
   Calculator,
-  Receipt,
+  ReceiptIndianRupee,
   FileBarChart2,
   ShieldCheck,
   Settings,
@@ -28,7 +28,7 @@ export function Sidebar({ collapsed, onToggle }) {
         { title: 'My Self-Service', path: '/ess', icon: LayoutDashboard },
         { title: 'My Attendance', path: '/attendance', icon: CalendarCheck },
         { title: 'My Time Off', path: '/time-off', icon: Palmtree },
-        { title: 'My Payslips', path: '/payslips', icon: Receipt },
+        { title: 'My Payslips', path: '/payslips', icon: ReceiptIndianRupee },
         { title: 'My Profile (360)', path: `/employees/360/${user?.employee_id || 1}`, icon: Users }
       ]
     : [
@@ -49,7 +49,7 @@ export function Sidebar({ collapsed, onToggle }) {
         },
         { title: 'Salary Structures', path: '/salary', icon: Calculator, roles: ['admin', 'payroll_manager', 'payroll_user'] },
         { title: 'Payruns', path: '/payroll', icon: Sparkles, roles: ['admin', 'payroll_manager', 'payroll_user'] },
-        { title: 'Payslips', path: '/payslips', icon: Receipt },
+        { title: 'Payslips', path: '/payslips', icon: ReceiptIndianRupee },
         {
           section: 'ANALYTICS & ADMIN'
         },

@@ -1,7 +1,7 @@
 // client/src/components/layout/MobileNav.jsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CalendarCheck, Palmtree, Sparkles, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarCheck, Palmtree, Sparkles, ReceiptIndianRupee } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function MobileNav() {
@@ -12,14 +12,14 @@ export function MobileNav() {
         { title: 'ESS', path: '/ess', icon: LayoutDashboard },
         { title: 'Attendance', path: '/attendance', icon: CalendarCheck },
         { title: 'Leave', path: '/time-off', icon: Palmtree },
-        { title: 'Payslips', path: '/payslips', icon: Receipt }
+        { title: 'Payslips', path: '/payslips', icon: ReceiptIndianRupee }
       ]
     : [
         { title: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { title: 'Employees', path: '/employees', icon: Users },
         { title: 'Attendance', path: '/attendance', icon: CalendarCheck },
         { title: 'Payroll', path: '/payroll', icon: Sparkles },
-        { title: 'Payslips', path: '/payslips', icon: Receipt }
+        { title: 'Payslips', path: '/payslips', icon: ReceiptIndianRupee }
       ];
 
   return (
