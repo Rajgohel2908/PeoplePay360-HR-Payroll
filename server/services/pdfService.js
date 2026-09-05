@@ -1,6 +1,4 @@
 // server/services/pdfService.js
-const fs = require('fs');
-const path = require('path');
 const PDFDocument = require('pdfkit');
 const db = require('../database/connection');
 
@@ -46,21 +44,10 @@ async function generatePayslipPdf(payslipId) {
   const doc = new PDFDocument({ margin: 40, size: 'A4' });
 
   // Company Header
-  const logoPath = path.join(__dirname, '../assets/logo.png');
   doc.rect(40, 40, 515, 65).fill('#1e293b');
-
-  if (fs.existsSync(logoPath)) {
-    try {
-      doc.image(logoPath, 52, 48, { height: 48 });
-    } catch (e) {
-      doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('PeoplePay', 55, 52);
-    }
-  } else {
-    doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('PeoplePay', 55, 52);
-    doc.fontSize(9).font('Helvetica').text('Global HR & Payroll Management Platform', 55, 74);
-  }
-
-  doc.fontSize(8).fillColor('#94a3b8').text('Level 14, Prestige Tech Park, Bengaluru | GST: 29ABCDE1234F1Z5', 210, 88);
+  doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('PEOPLEPAY360', 55, 52);
+  doc.fontSize(9).font('Helvetica').text('Global HR & Payroll Management Platform', 55, 74);
+  doc.fontSize(8).fillColor('#94a3b8').text('Level 14, Prestige Tech Park, Bengaluru | GST: 29ABCDE1234F1Z5', 55, 88);
   
   doc.fillColor('#38bdf8').fontSize(14).font('Helvetica-Bold').text('CONFIDENTIAL PAYSLIP', 360, 55, { align: 'right' });
   doc.fillColor('#cbd5e1').fontSize(9).font('Helvetica').text(`Ref: ${payslip.payslip_number}`, 360, 74, { align: 'right' });

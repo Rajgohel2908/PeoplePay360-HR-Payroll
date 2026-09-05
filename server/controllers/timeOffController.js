@@ -6,88 +6,8 @@ const { createNotification } = require('../services/notificationService');
 
 async function getTimeOffTypes(req, res, next) {
   try {
-    const types = await db('time_off_types').orderBy('id', 'asc');
+    const types = await db('time_off_types').where('is_active', true);
     res.json({ success: true, data: types });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function createTimeOffType(req, res, next) {
-  try {
-    const { name, code, default_days = 0, paid = true, color = '#6366f1', requires_allocation = true } = req.body;
-
-    if (!name || !code) {
-      return res.status(400).json({
-        success: false,
-        code: 'VALIDATION_ERROR',
-        message: 'Name and unique code are required.'
-      });
-    }
-
-    const [insertId] = await db('time_off_types').insert({
-      name,
-      code: code.toUpperCase(),
-      default_days: parseFloat(default_days),
-      paid: Boolean(paid),
-      color,
-      requires_allocation: Boolean(requires_allocation),
-      is_active: true
-    });
-
-    const newType = await db('time_off_types').where('id', insertId).first();
-
-    await logAudit({
-      userId: req.user.id,
-      userName: req.user.username,
-      userRole: req.user.role,
-      action: 'CREATE_TIME_OFF_TYPE',
-      entity: 'TimeOffType',
-      entityId: String(insertId),
-      newValues: newType,
-      reason: `Created time off type ${name}`
-    });
-
-    res.status(201).json({ success: true, data: newType });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function updateTimeOffType(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { name, default_days, paid, color, requires_allocation, is_active } = req.body;
-
-    const existing = await db('time_off_types').where('id', id).first();
-    if (!existing) {
-      return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Leave type not found.' });
-    }
-
-    const updates = { updated_at: new Date() };
-    if (name !== undefined) updates.name = name;
-    if (default_days !== undefined) updates.default_days = parseFloat(default_days);
-    if (paid !== undefined) updates.paid = Boolean(paid);
-    if (color !== undefined) updates.color = color;
-    if (requires_allocation !== undefined) updates.requires_allocation = Boolean(requires_allocation);
-    if (is_active !== undefined) updates.is_active = Boolean(is_active);
-
-    await db('time_off_types').where('id', id).update(updates);
-    const updated = await db('time_off_types').where('id', id).first();
-
-    await logAudit({
-      userId: req.user.id,
-      userName: req.user.username,
-      userRole: req.user.role,
-      action: 'UPDATE_TIME_OFF_TYPE',
-      entity: 'TimeOffType',
-      entityId: String(id),
-      oldValues: existing,
-      newValues: updated,
-      reason: `Updated time off type ${existing.name}`
-    });
-
-    res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
   }
@@ -127,67 +47,6 @@ async function getAllocations(req, res, next) {
   }
 }
 
-async function createAllocation(req, res, next) {
-  try {
-    const { employee_id, leave_type_id, allocated_days, year = new Date().getFullYear(), notes } = req.body;
-
-    if (!employee_id || !leave_type_id || allocated_days === undefined) {
-      return res.status(400).json({
-        success: false,
-        code: 'VALIDATION_ERROR',
-        message: 'employee_id, leave_type_id, and allocated_days are required.'
-      });
-    }
-
-    const days = parseFloat(allocated_days);
-
-    const [insertId] = await db('time_off_allocations').insert({
-      employee_id,
-      leave_type_id,
-      allocated_days: days,
-      used_days: 0,
-      pending_days: 0,
-      remaining_days: days,
-      year: parseInt(year, 10),
-      notes: notes || null
-    });
-
-    const newAlloc = await db('time_off_allocations').where('id', insertId).first();
-
-    res.status(201).json({ success: true, data: newAlloc });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function updateAllocation(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { allocated_days, notes } = req.body;
-
-    const existing = await db('time_off_allocations').where('id', id).first();
-    if (!existing) {
-      return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Allocation not found.' });
-    }
-
-    const updates = { updated_at: new Date() };
-    if (allocated_days !== undefined) {
-      const newAllocated = parseFloat(allocated_days);
-      const used = parseFloat(existing.used_days || 0);
-      updates.allocated_days = newAllocated;
-      updates.remaining_days = Math.max(0, newAllocated - used);
-    }
-    if (notes !== undefined) updates.notes = notes;
-
-    await db('time_off_allocations').where('id', id).update(updates);
-    const updated = await db('time_off_allocations').where('id', id).first();
-
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    next(err);
-  }
-}
-
 async function getRequests(req, res, next) {
   try {
     const { employee_id, status, department_id } = req.query;
@@ -213,16 +72,18 @@ async function getRequests(req, res, next) {
 
     if (req.user.role === ROLES.EMPLOYEE) {
       query = query.where('r.employee_id', req.user.employee_id);
-    } else {
-      if (employee_id) query = query.where('r.employee_id', employee_id);
-      if (department_id) query = query.where('e.department_id', department_id);
+    } else if (employee_id) {
+      query = query.where('r.employee_id', employee_id);
     }
 
     if (status) {
       query = query.where('r.status', status);
     }
+    if (department_id) {
+      query = query.where('e.department_id', department_id);
+    }
 
-    const requests = await query.orderBy('r.created_at', 'desc');
+    const requests = await query.orderBy('r.start_date', 'desc');
 
     res.json({ success: true, data: requests });
   } catch (err) {
@@ -232,45 +93,46 @@ async function getRequests(req, res, next) {
 
 async function submitRequest(req, res, next) {
   try {
-    const { leave_type_id, start_date, end_date, duration_days, reason } = req.body;
     const employeeId = req.user.role === ROLES.EMPLOYEE ? req.user.employee_id : req.body.employee_id;
+    const { leave_type_id, start_date, end_date, duration_days, reason } = req.body;
 
     if (!leave_type_id || !start_date || !end_date || !duration_days) {
       return res.status(400).json({
         success: false,
-        code: 'VALIDATION_ERROR',
+        code: 'MISSING_FIELDS',
         message: 'Leave type, start date, end date, and duration are required.'
       });
     }
 
-    const leaveType = await db('time_off_types').where('id', leave_type_id).first();
-    if (!leaveType) {
-      return res.status(404).json({
+    if (new Date(end_date) < new Date(start_date)) {
+      return res.status(400).json({
         success: false,
-        code: 'LEAVE_TYPE_NOT_FOUND',
-        message: 'Invalid leave type specified.'
+        code: 'INVALID_DATES',
+        message: 'End date cannot be earlier than start date.'
       });
     }
 
-    // Overlap check
-    const overlap = await db('time_off_requests')
+    // Check overlap with existing active requests
+    const overlapping = await db('time_off_requests')
       .where('employee_id', employeeId)
-      .whereNotIn('status', [TIME_OFF_STATUS.REFUSED, TIME_OFF_STATUS.CANCELLED])
-      .where('start_date', '<=', end_date)
-      .where('end_date', '>=', start_date)
-      .first();
+      .whereIn('status', [TIME_OFF_STATUS.SUBMITTED, TIME_OFF_STATUS.APPROVED])
+      .andWhere((builder) => {
+        builder.where('start_date', '<=', end_date)
+          .andWhere('end_date', '>=', start_date);
+      });
 
-    if (overlap) {
+    if (overlapping.length > 0) {
       return res.status(400).json({
         success: false,
         code: 'OVERLAPPING_REQUEST',
-        message: 'A time off request already exists for these dates.'
+        message: 'You already have an existing leave request overlapping these dates.'
       });
     }
 
+    const leaveType = await db('time_off_types').where('id', leave_type_id).first();
     const currentYear = new Date(start_date).getFullYear();
 
-    // Check balance if allocation required
+    // If type requires allocation, check remaining balance
     if (leaveType.requires_allocation) {
       const alloc = await db('time_off_allocations')
         .where('employee_id', employeeId)
@@ -295,7 +157,6 @@ async function submitRequest(req, res, next) {
         });
     }
 
-    // MySQL: insert returns [id]
     const [newId] = await db('time_off_requests').insert({
       employee_id: employeeId,
       leave_type_id,
@@ -304,9 +165,9 @@ async function submitRequest(req, res, next) {
       duration_days: parseFloat(duration_days),
       reason,
       status: TIME_OFF_STATUS.SUBMITTED
-    });
+    }).returning('id');
 
-    const requestId = typeof newId === 'object' ? newId.id : newId;
+    const requestId = newId?.id || newId;
 
     // Notify HR Managers
     await createNotification({
@@ -319,8 +180,8 @@ async function submitRequest(req, res, next) {
 
     res.status(201).json({
       success: true,
-      message: 'Time off request submitted successfully.',
-      data: { id: requestId }
+      message: 'Time off request submitted successfully for manager approval.',
+      data: await db('time_off_requests').where('id', requestId).first()
     });
   } catch (err) {
     next(err);
@@ -334,8 +195,7 @@ async function approveRequest(req, res, next) {
 
     const request = await db('time_off_requests as r')
       .join('time_off_types as t', 'r.leave_type_id', 't.id')
-      .join('employees as e', 'r.employee_id', 'e.id')
-      .select('r.*', 't.requires_allocation', 't.name as leave_name', 'e.first_name', 'e.last_name', 'e.user_id')
+      .select('r.*', 't.requires_allocation', 't.name as leave_name')
       .where('r.id', id)
       .first();
 
@@ -351,14 +211,25 @@ async function approveRequest(req, res, next) {
       return res.status(400).json({
         success: false,
         code: 'INVALID_STATUS',
-        message: `Cannot approve request with status '${request.status}'. Must be '${TIME_OFF_STATUS.SUBMITTED}'.`
+        message: `Cannot approve a request with status '${request.status}'.`
       });
     }
 
     const currentYear = new Date(request.start_date).getFullYear();
 
     await db.transaction(async (trx) => {
-      // Deduct from allocation if required
+      // 1. Update Request
+      await trx('time_off_requests')
+        .where('id', id)
+        .update({
+          status: TIME_OFF_STATUS.APPROVED,
+          approver_id: req.user.id,
+          approver_comment: approver_comment || 'Approved',
+          approved_at: new Date(),
+          updated_at: new Date()
+        });
+
+      // 2. If requires allocation, deduct from remaining and add to used
       if (request.requires_allocation) {
         const alloc = await trx('time_off_allocations')
           .where('employee_id', request.employee_id)
@@ -367,8 +238,8 @@ async function approveRequest(req, res, next) {
           .first();
 
         if (alloc) {
-          const used = parseFloat(alloc.used_days || 0) + parseFloat(request.duration_days);
-          const pending = Math.max(0, parseFloat(alloc.pending_days || 0) - parseFloat(request.duration_days));
+          const used = parseFloat(alloc.used_days) + parseFloat(request.duration_days);
+          const pending = Math.max(0, parseFloat(alloc.pending_days) - parseFloat(request.duration_days));
           const remaining = Math.max(0, parseFloat(alloc.allocated_days) - used);
 
           await trx('time_off_allocations')
@@ -382,40 +253,36 @@ async function approveRequest(req, res, next) {
         }
       }
 
-      await trx('time_off_requests')
-        .where('id', id)
-        .update({
-          status: TIME_OFF_STATUS.APPROVED,
-          approver_id: req.user.id,
-          approver_comment: approver_comment || null,
-          approved_at: new Date(),
-          updated_at: new Date()
-        });
-    });
-
-    await logAudit({
-      userId: req.user.id,
-      userName: req.user.username,
-      userRole: req.user.role,
-      action: 'APPROVE_TIME_OFF',
-      entity: 'TimeOffRequest',
-      entityId: String(id),
-      reason: approver_comment || 'Leave approved'
-    });
-
-    if (request.user_id) {
-      await createNotification({
-        userId: request.user_id,
-        type: 'LEAVE_APPROVED',
-        title: 'Leave Request Approved',
-        message: `Your ${request.leave_name} request from ${request.start_date} to ${request.end_date} has been approved.`,
-        link: '/time-off'
+      // 3. Audit Log
+      await logAudit({
+        userId: req.user.id,
+        userName: req.user.username,
+        userRole: req.user.role,
+        action: 'APPROVE_LEAVE_REQUEST',
+        entity: 'TimeOffRequest',
+        entityId: id,
+        newValues: JSON.stringify({ status: 'approved', approver_id: req.user.id }),
+        reason: approver_comment || 'Leave approved',
+        ipAddress: req.ip
       });
-    }
+
+      // 4. Notify Employee
+      const empUser = await trx('users').where('employee_id', request.employee_id).first();
+      if (empUser) {
+        await createNotification({
+          userId: empUser.id,
+          type: 'LEAVE_REQUEST_APPROVED',
+          title: 'Leave Request Approved',
+          message: `Your request for ${request.leave_name} (${request.duration_days} days) has been APPROVED.`,
+          link: '/time-off'
+        });
+      }
+    });
 
     res.json({
       success: true,
-      message: 'Time off request approved successfully.'
+      message: 'Time off request approved successfully and allocation balances updated.',
+      data: await db('time_off_requests').where('id', id).first()
     });
   } catch (err) {
     next(err);
@@ -427,25 +294,41 @@ async function refuseRequest(req, res, next) {
     const { id } = req.params;
     const { approver_comment } = req.body;
 
+    if (!approver_comment) {
+      return res.status(400).json({
+        success: false,
+        code: 'REASON_REQUIRED',
+        message: 'A rejection reason is required.'
+      });
+    }
+
     const request = await db('time_off_requests as r')
       .join('time_off_types as t', 'r.leave_type_id', 't.id')
-      .join('employees as e', 'r.employee_id', 'e.id')
-      .select('r.*', 't.requires_allocation', 't.name as leave_name', 'e.first_name', 'e.last_name', 'e.user_id')
+      .select('r.*', 't.requires_allocation', 't.name as leave_name')
       .where('r.id', id)
       .first();
 
-    if (!request) {
-      return res.status(404).json({
+    if (!request || request.status !== TIME_OFF_STATUS.SUBMITTED) {
+      return res.status(400).json({
         success: false,
-        code: 'REQUEST_NOT_FOUND',
-        message: 'Leave request not found.'
+        code: 'INVALID_REQUEST',
+        message: 'Request not found or not in submitted state.'
       });
     }
 
     const currentYear = new Date(request.start_date).getFullYear();
 
     await db.transaction(async (trx) => {
-      // Revert pending days
+      await trx('time_off_requests')
+        .where('id', id)
+        .update({
+          status: TIME_OFF_STATUS.REFUSED,
+          approver_id: req.user.id,
+          approver_comment,
+          updated_at: new Date()
+        });
+
+      // Release pending days back to balance
       if (request.requires_allocation) {
         const alloc = await trx('time_off_allocations')
           .where('employee_id', request.employee_id)
@@ -454,39 +337,29 @@ async function refuseRequest(req, res, next) {
           .first();
 
         if (alloc) {
-          const pending = Math.max(0, parseFloat(alloc.pending_days || 0) - parseFloat(request.duration_days));
+          const pending = Math.max(0, parseFloat(alloc.pending_days) - parseFloat(request.duration_days));
           await trx('time_off_allocations')
             .where('id', alloc.id)
-            .update({
-              pending_days: pending,
-              updated_at: new Date()
-            });
+            .update({ pending_days: pending, updated_at: new Date() });
         }
       }
 
-      await trx('time_off_requests')
-        .where('id', id)
-        .update({
-          status: TIME_OFF_STATUS.REFUSED,
-          approver_id: req.user.id,
-          approver_comment: approver_comment || null,
-          updated_at: new Date()
+      const empUser = await trx('users').where('employee_id', request.employee_id).first();
+      if (empUser) {
+        await createNotification({
+          userId: empUser.id,
+          type: 'LEAVE_REQUEST_REFUSED',
+          title: 'Leave Request Declined',
+          message: `Your request for ${request.leave_name} was refused. Reason: ${approver_comment}`,
+          link: '/time-off'
         });
+      }
     });
-
-    if (request.user_id) {
-      await createNotification({
-        userId: request.user_id,
-        type: 'LEAVE_REFUSED',
-        title: 'Leave Request Refused',
-        message: `Your ${request.leave_name} request from ${request.start_date} has been refused. Reason: ${approver_comment || 'No reason specified'}`,
-        link: '/time-off'
-      });
-    }
 
     res.json({
       success: true,
-      message: 'Time off request refused.'
+      message: 'Time off request refused.',
+      data: await db('time_off_requests').where('id', id).first()
     });
   } catch (err) {
     next(err);
@@ -496,7 +369,6 @@ async function refuseRequest(req, res, next) {
 async function cancelRequest(req, res, next) {
   try {
     const { id } = req.params;
-
     const request = await db('time_off_requests as r')
       .join('time_off_types as t', 'r.leave_type_id', 't.id')
       .select('r.*', 't.requires_allocation')
@@ -560,11 +432,7 @@ async function cancelRequest(req, res, next) {
 
 module.exports = {
   getTimeOffTypes,
-  createTimeOffType,
-  updateTimeOffType,
   getAllocations,
-  createAllocation,
-  updateAllocation,
   getRequests,
   submitRequest,
   approveRequest,

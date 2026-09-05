@@ -41,16 +41,14 @@ async function createUser(req, res, next) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password || 'password123', salt);
 
-    const [insertId] = await db('users').insert({
+    const [newId] = await db('users').insert({
       username,
       email,
       password_hash: passwordHash,
       role: role || 'employee',
       employee_id: employee_id || null,
       is_active: true
-    });
-
-    const newUser = await db('users').where('id', insertId).first();
+    }).returning('id');
 
     await logAudit({
       userId: req.user.id,
@@ -58,7 +56,7 @@ async function createUser(req, res, next) {
       userRole: req.user.role,
       action: 'CREATE_USER',
       entity: 'User',
-      entityId: String(insertId),
+      entityId: newId?.id || newId,
       newValues: JSON.stringify({ username, email, role }),
       reason: 'Admin user provisioning',
       ipAddress: req.ip
@@ -67,7 +65,7 @@ async function createUser(req, res, next) {
     res.status(201).json({
       success: true,
       message: 'User created successfully.',
-      data: newUser
+      data: await db('users').where('id', newId?.id || newId).first()
     });
   } catch (err) {
     next(err);
@@ -237,120 +235,6 @@ async function globalSearch(req, res, next) {
   }
 }
 
-// Departments Management
-async function getDepartments(req, res, next) {
-  try {
-    const departments = await db('departments as d')
-      .leftJoin('employees as m', 'd.manager_id', 'm.id')
-      .select(
-        'd.*',
-        db.raw("CONCAT(m.first_name, ' ', m.last_name) as manager_name"),
-        db.raw('(SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id) as employee_count')
-      )
-      .orderBy('d.name', 'asc');
-
-    res.json({ success: true, data: departments });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function createDepartment(req, res, next) {
-  try {
-    const { name, code, manager_id, cost_center, color } = req.body;
-    if (!name || !code) {
-      return res.status(400).json({ success: false, message: 'Department name and code are required.' });
-    }
-
-    const [insertId] = await db('departments').insert({
-      name,
-      code: code.toUpperCase(),
-      manager_id: manager_id || null,
-      cost_center: cost_center || null,
-      color: color || '#4f46e5'
-    });
-
-    const newDept = await db('departments').where('id', insertId).first();
-    res.status(201).json({ success: true, data: newDept });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function updateDepartment(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { name, code, manager_id, cost_center, color } = req.body;
-
-    const updates = { updated_at: new Date() };
-    if (name !== undefined) updates.name = name;
-    if (code !== undefined) updates.code = code.toUpperCase();
-    if (manager_id !== undefined) updates.manager_id = manager_id || null;
-    if (cost_center !== undefined) updates.cost_center = cost_center;
-    if (color !== undefined) updates.color = color;
-
-    await db('departments').where('id', id).update(updates);
-    const updated = await db('departments').where('id', id).first();
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    next(err);
-  }
-}
-
-// Job Positions Management
-async function getPositions(req, res, next) {
-  try {
-    const positions = await db('job_positions as p')
-      .leftJoin('departments as d', 'p.department_id', 'd.id')
-      .select('p.*', 'd.name as department_name')
-      .orderBy('p.title', 'asc');
-
-    res.json({ success: true, data: positions });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function createPosition(req, res, next) {
-  try {
-    const { title, department_id, grade, description } = req.body;
-    if (!title) {
-      return res.status(400).json({ success: false, message: 'Position title is required.' });
-    }
-
-    const [insertId] = await db('job_positions').insert({
-      title,
-      department_id: department_id || null,
-      grade: grade || null,
-      description: description || null
-    });
-
-    const newPos = await db('job_positions').where('id', insertId).first();
-    res.status(201).json({ success: true, data: newPos });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function updatePosition(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { title, department_id, grade, description } = req.body;
-
-    const updates = { updated_at: new Date() };
-    if (title !== undefined) updates.title = title;
-    if (department_id !== undefined) updates.department_id = department_id || null;
-    if (grade !== undefined) updates.grade = grade;
-    if (description !== undefined) updates.description = description;
-
-    await db('job_positions').where('id', id).update(updates);
-    const updated = await db('job_positions').where('id', id).first();
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    next(err);
-  }
-}
-
 module.exports = {
   getUsers,
   createUser,
@@ -358,11 +242,5 @@ module.exports = {
   getSettings,
   updateSetting,
   getAuditLogs,
-  globalSearch,
-  getDepartments,
-  createDepartment,
-  updateDepartment,
-  getPositions,
-  createPosition,
-  updatePosition
+  globalSearch
 };

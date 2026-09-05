@@ -49,14 +49,14 @@ async function createStructure(req, res, next) {
   try {
     const { name, code, description, is_active } = req.body;
 
-    const [insertId] = await db('salary_structures').insert({
+    const [newId] = await db('salary_structures').insert({
       name,
       code,
       description,
       is_active: is_active !== undefined ? is_active : true
-    });
+    }).returning('id');
 
-    const createdId = insertId;
+    const createdId = newId?.id || newId;
 
     await logAudit({
       userId: req.user?.id,
@@ -91,12 +91,14 @@ async function duplicateStructure(req, res, next) {
     const sourceRules = await db('salary_rules').where('structure_id', id);
 
     const newCode = `${source.code}_COPY_${Date.now().toString().slice(-4)}`;
-    const [newStructureId] = await db('salary_structures').insert({
+    const [newId] = await db('salary_structures').insert({
       name: `${source.name} (Copy)`,
       code: newCode,
       description: `Duplicated from ${source.name}`,
       is_active: true
-    });
+    }).returning('id');
+
+    const newStructureId = newId?.id || newId;
 
     for (const rule of sourceRules) {
       await db('salary_rules').insert({
@@ -126,49 +128,9 @@ async function duplicateStructure(req, res, next) {
   }
 }
 
-async function updateStructure(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { name, description, is_active } = req.body;
-
-    const existing = await db('salary_structures').where('id', id).first();
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Salary structure not found.' });
-    }
-
-    await db('salary_structures').where('id', id).update({
-      name: name !== undefined ? name : existing.name,
-      description: description !== undefined ? description : existing.description,
-      is_active: is_active !== undefined ? is_active : existing.is_active,
-      updated_at: new Date()
-    });
-
-    await logAudit({
-      userId: req.user?.id,
-      userName: req.user?.username,
-      userRole: req.user?.role,
-      action: 'UPDATE_SALARY_STRUCTURE',
-      entity: 'SalaryStructure',
-      entityId: id,
-      newValues: JSON.stringify({ name, is_active }),
-      reason: 'Salary structure updated',
-      ipAddress: req.ip
-    });
-
-    res.json({
-      success: true,
-      message: 'Salary structure updated successfully.',
-      data: await db('salary_structures').where('id', id).first()
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
 module.exports = {
   getStructures,
   getStructureById,
   createStructure,
-  updateStructure,
   duplicateStructure
 };

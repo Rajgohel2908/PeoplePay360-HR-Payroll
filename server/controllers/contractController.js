@@ -118,7 +118,7 @@ async function createContract(req, res, next) {
 
     const contractCode = data.contract_id || `CNT-${Date.now()}`;
 
-    const [insertId] = await db('contracts').insert({
+    const [newId] = await db('contracts').insert({
       contract_id: contractCode,
       employee_id: data.employee_id,
       start_date: data.start_date,
@@ -132,9 +132,9 @@ async function createContract(req, res, next) {
       working_schedule_id: data.working_schedule_id || 1,
       status: data.status || 'active',
       contract_notes: data.contract_notes || null
-    });
+    }).returning('id');
 
-    const createdId = insertId;
+    const createdId = newId?.id || newId;
 
     await logAudit({
       userId: req.user?.id,
@@ -198,54 +198,9 @@ async function updateContract(req, res, next) {
   }
 }
 
-async function deleteContract(req, res, next) {
-  try {
-    const { id } = req.params;
-
-    const contract = await db('contracts').where('id', id).first();
-    if (!contract) {
-      return res.status(404).json({ success: false, code: 'CONTRACT_NOT_FOUND', message: 'Contract not found.' });
-    }
-
-    // Prevent deletion if paid payslips reference this contract
-    const linkedPayslips = await db('payslips')
-      .where('contract_id', id)
-      .where('payment_status', 'Paid')
-      .count('id as count')
-      .first();
-
-    if (parseInt(linkedPayslips.count, 10) > 0) {
-      return res.status(400).json({
-        success: false,
-        code: 'CONTRACT_HAS_PAYSLIPS',
-        message: `Cannot delete contract. It is referenced by ${linkedPayslips.count} paid payslip(s). Archive it instead by setting status to 'terminated'.`
-      });
-    }
-
-    await db('contracts').where('id', id).delete();
-
-    await logAudit({
-      userId: req.user?.id,
-      userName: req.user?.username,
-      userRole: req.user?.role,
-      action: 'DELETE_CONTRACT',
-      entity: 'Contract',
-      entityId: id,
-      oldValues: JSON.stringify(contract),
-      reason: 'Contract deleted',
-      ipAddress: req.ip
-    });
-
-    res.json({ success: true, message: 'Contract deleted successfully.' });
-  } catch (err) {
-    next(err);
-  }
-}
-
 module.exports = {
   getContracts,
   getContractById,
   createContract,
-  updateContract,
-  deleteContract
+  updateContract
 };
