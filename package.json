@@ -1,0 +1,25 @@
+{
+  "name": "peoplepay360",
+  "version": "1.0.0",
+  "description": "PEOPLEPAY360 - Enterprise Connected HR & Payroll Management Platform",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "start:server": "npm --prefix server start",
+    "build:client": "npm --prefix client run build",
+    "seed": "node server/database/seeders.js",
+    "test": "npm --prefix server test"
+  },
+  "keywords": [
+    "payroll",
+    "hr",
+    "human-resources",
+    "payroll-engine",
+    "enterprise-software",
+    "attendance",
+    "contracts",
+    "payslip"
+  ],
+  "author": "PeoplePay360 Team",
+  "license": "ISC"
+}
