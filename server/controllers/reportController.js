@@ -21,7 +21,7 @@ async function getPayrollSummaryReport(req, res, next) {
         'pr.total_lop',
         'ss.name as structure_name'
       )
-      .where('pr.period_start', 'like', `${year}%`)
+      .whereRaw('YEAR(pr.period_start) = ?', [parseInt(year, 10)])
       .orderBy('pr.period_start', 'desc');
 
     res.json({ success: true, data });
@@ -62,7 +62,7 @@ async function getAttendanceReport(req, res, next) {
       .groupBy('e.id', 'e.employee_id', 'e.first_name', 'e.last_name', 'd.name')
       .select(
         'e.employee_id as emp_code',
-        db.raw("e.first_name || ' ' || e.last_name as employee_name"),
+        db.raw("CONCAT(e.first_name, ' ', e.last_name) as employee_name"),
         'd.name as department_name',
         db.raw("COUNT(a.id) as total_days_logged"),
         db.raw("COUNT(CASE WHEN a.status = 'present' THEN 1 END) as present_days"),
@@ -94,7 +94,7 @@ async function getLeaveReport(req, res, next) {
       .leftJoin('departments as d', 'e.department_id', 'd.id')
       .select(
         'e.employee_id as emp_code',
-        db.raw("e.first_name || ' ' || e.last_name as employee_name"),
+        db.raw("CONCAT(e.first_name, ' ', e.last_name) as employee_name"),
         'd.name as department_name',
         't.name as leave_type',
         'a.allocated_days',
@@ -102,7 +102,7 @@ async function getLeaveReport(req, res, next) {
         'a.pending_days',
         'a.remaining_days'
       )
-      .where('a.year', year)
+      .where('a.year', parseInt(year, 10))
       .orderBy('e.first_name', 'asc');
 
     res.json({ success: true, data });
@@ -120,7 +120,7 @@ async function getContractExpiryReport(req, res, next) {
       .select(
         'c.contract_id',
         'e.employee_id as emp_code',
-        db.raw("e.first_name || ' ' || e.last_name as employee_name"),
+        db.raw("CONCAT(e.first_name, ' ', e.last_name) as employee_name"),
         'd.name as department_name',
         'jp.title as position_title',
         'c.start_date',

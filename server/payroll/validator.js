@@ -96,6 +96,40 @@ async function runPayrollPreFlightChecks(payrunId) {
           is_resolved: false
         });
       }
+
+      if (activeContracts.length > 0 && parseFloat(activeContracts[0].wage || 0) <= 0) {
+        issues.push({
+          payrun_id: payrunId,
+          employee_id: pe.employee_id,
+          category: VALIDATION_CATEGORY.SALARY || 'Salary',
+          severity: VALIDATION_SEVERITY.BLOCKER,
+          title: 'Zero or Negative Wage in Contract',
+          description: `${fullName} has a contract with zero or negative wage amount (${activeContracts[0].wage}).`,
+          impact: 'Payroll cannot generate valid gross pay or statutory deductions with zero wage.',
+          recommended_action: 'Update contract wage in Contract Management.',
+          is_resolved: false
+        });
+      }
+    }
+
+    // Check for negative net salary on existing payslips
+    const existingSlip = await db('payslips')
+      .where('payrun_id', payrunId)
+      .where('employee_id', pe.employee_id)
+      .first();
+
+    if (existingSlip && parseFloat(existingSlip.net_salary || 0) < 0) {
+      issues.push({
+        payrun_id: payrunId,
+        employee_id: pe.employee_id,
+        category: VALIDATION_CATEGORY.SALARY || 'Salary',
+        severity: VALIDATION_SEVERITY.BLOCKER,
+        title: 'Negative Net Salary Detected',
+        description: `${fullName} has negative net pay (₹${existingSlip.net_salary}) due to deductions exceeding gross earnings.`,
+        impact: 'Net pay cannot be negative for bank disbursement.',
+        recommended_action: 'Review deduction rules, unpaid leave deductions, or adjust salary components.',
+        is_resolved: false
+      });
     }
 
     // C. ATTENDANCE VALIDATION

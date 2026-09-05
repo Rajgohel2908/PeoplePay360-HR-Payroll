@@ -133,7 +133,7 @@ async function checkIn(req, res, next) {
     const isLate = totalMinutes > standardStart;
     const lateMins = isLate ? totalMinutes - (9 * 60) : 0;
 
-    const [newId] = await db('attendance').insert({
+    const [insertId] = await db('attendance').insert({
       employee_id: employeeId,
       date: today,
       check_in: currentTime,
@@ -144,12 +144,14 @@ async function checkIn(req, res, next) {
       late_minutes: lateMins,
       status: isLate ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT,
       source: 'Web Self-Service'
-    }).returning('id');
+    });
+
+    const newRecord = await db('attendance').where('id', insertId).first();
 
     res.status(201).json({
       success: true,
       message: `Checked in successfully at ${currentTime}${isLate ? ` (${lateMins} mins late)` : ''}.`,
-      data: await db('attendance').where('id', newId?.id || newId).first()
+      data: newRecord
     });
   } catch (err) {
     next(err);
@@ -286,40 +288,76 @@ async function correctAttendance(req, res, next) {
         data: await db('attendance').where('id', id).first()
       });
     } else {
-      // Manual new entry
-      const employeeId = req.body.employee_id;
-      const [newId] = await db('attendance').insert({
-        employee_id: employeeId,
-        date: date,
-        check_in,
-        check_out,
-        worked_hours: workedHours,
-        expected_hours: 8.0,
-        overtime_hours: overtimeHours,
-        status: status || ATTENDANCE_STATUS.PRESENT,
-        source: 'Manual HR Entry',
-        corrected_by: req.user.id,
-        correction_reason: correction_reason
-      }).returning('id');
+      // Delegate to manual creation
+      return createManualAttendance(req, res, next);
+    }
+  } catch (err) {
+    next(err);
+  }
+}
 
-      await logAudit({
-        userId: req.user.id,
-        userName: req.user.username,
-        userRole: req.user.role,
-        action: 'MANUAL_ATTENDANCE_ENTRY',
-        entity: 'Attendance',
-        entityId: newId?.id || newId,
-        newValues: JSON.stringify({ employeeId, date, check_in, check_out }),
-        reason: correction_reason,
-        ipAddress: req.ip
-      });
+async function createManualAttendance(req, res, next) {
+  try {
+    const { employee_id, date, check_in, check_out, status, correction_reason } = req.body;
 
-      return res.status(201).json({
-        success: true,
-        message: 'Manual attendance record created.',
-        data: await db('attendance').where('id', newId?.id || newId).first()
+    if (!employee_id || !date) {
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        message: 'employee_id and date are required.'
       });
     }
+
+    let workedHours = 8.0;
+    let overtimeHours = 0;
+    if (check_in && check_out) {
+      const [inH, inM] = check_in.split(':').map(Number);
+      const [outH, outM] = check_out.split(':').map(Number);
+      const totalMins = (outH * 60 + outM) - (inH * 60 + inM) - 60;
+      if (totalMins < 0) {
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_TIMES',
+          message: 'Check-out time cannot be earlier than check-in time.'
+        });
+      }
+      workedHours = Math.round((totalMins / 60) * 10) / 10;
+      overtimeHours = workedHours > 8.0 ? Math.round((workedHours - 8.0) * 10) / 10 : 0;
+    }
+
+    const [insertId] = await db('attendance').insert({
+      employee_id,
+      date,
+      check_in: check_in || '09:00',
+      check_out: check_out || '18:00',
+      worked_hours: workedHours,
+      expected_hours: 8.0,
+      overtime_hours: overtimeHours,
+      status: status || ATTENDANCE_STATUS.MANUAL_CORRECTION,
+      source: 'Manual HR Entry',
+      corrected_by: req.user.id,
+      correction_reason: correction_reason || 'Manual entry by HR'
+    });
+
+    const newRecord = await db('attendance').where('id', insertId).first();
+
+    await logAudit({
+      userId: req.user.id,
+      userName: req.user.username,
+      userRole: req.user.role,
+      action: 'MANUAL_ATTENDANCE_ENTRY',
+      entity: 'Attendance',
+      entityId: String(insertId),
+      newValues: JSON.stringify({ employee_id, date, check_in, check_out }),
+      reason: correction_reason || 'Manual entry by HR',
+      ipAddress: req.ip
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Manual attendance record created.',
+      data: newRecord
+    });
   } catch (err) {
     next(err);
   }
@@ -329,5 +367,6 @@ module.exports = {
   getAttendance,
   checkIn,
   checkOut,
-  correctAttendance
+  correctAttendance,
+  createManualAttendance
 };

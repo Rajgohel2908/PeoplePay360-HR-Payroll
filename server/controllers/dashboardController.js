@@ -5,6 +5,7 @@ const { ROLES } = require('../config/constants');
 async function getDashboardSummary(req, res, next) {
   try {
     const { period_year = '2026', department_id } = req.query;
+    const yearInt = parseInt(period_year, 10) || 2026;
 
     // 1. Employee Counts
     const empCounts = await db('employees')
@@ -49,9 +50,11 @@ async function getDashboardSummary(req, res, next) {
       .first();
 
     // 4. Attendance Exceptions & Health (Current Month)
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthNum = now.getMonth() + 1;
     const attendanceStats = await db('attendance')
-      .where('date', 'like', `${currentMonth}%`)
+      .whereRaw('YEAR(date) = ? AND MONTH(date) = ?', [currentYear, currentMonthNum])
       .select(
         db.raw("COUNT(id) as total_records"),
         db.raw("COUNT(CASE WHEN status = 'present' THEN 1 END) as present_count"),
@@ -77,8 +80,9 @@ async function getDashboardSummary(req, res, next) {
     // 6. Monthly Payroll Cost Trend
     const payrollTrends = await db('payruns')
       .select('payrun_number', 'title', 'period_start', 'total_gross', 'total_net', 'total_deductions', 'status')
+      .whereRaw('YEAR(period_start) = ?', [yearInt])
       .orderBy('period_start', 'asc')
-      .limit(6);
+      .limit(12);
 
     // 7. Salary Cost by Department
     const departmentCost = await db('contracts as c')

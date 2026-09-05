@@ -31,7 +31,7 @@ async function getEmployees(req, res, next) {
         'jp.title as position_title',
         'jp.grade as position_grade',
         'ws.name as schedule_name',
-        db.raw("m.first_name || ' ' || m.last_name as manager_name")
+        db.raw("CONCAT(m.first_name, ' ', m.last_name) as manager_name")
       );
 
     if (search) {
@@ -138,10 +138,11 @@ async function getEmployee360(req, res, next) {
         'jp.grade as position_grade',
         'ws.name as schedule_name',
         'ws.weekly_hours',
-        db.raw("m.first_name || ' ' || m.last_name as manager_name")
+        db.raw("CONCAT(m.first_name, ' ', m.last_name) as manager_name")
       )
-      .where('e.id', id)
-      .orWhere('e.employee_id', id)
+      .where(function() {
+        this.where('e.id', id).orWhere('e.employee_id', id);
+      })
       .first();
 
     if (!employee) {
@@ -287,9 +288,9 @@ async function createEmployee(req, res, next) {
       uan_number: data.uan_number || null,
       avatar_url: avatarUrl,
       notes: data.notes || null
-    }).returning('id');
+    });
 
-    const empDbId = newId?.id || newId;
+    const empDbId = insertId;
 
     // Create Initial Contract if wage provided
     if (data.wage) {
@@ -450,10 +451,42 @@ async function deleteEmployee(req, res, next) {
   }
 }
 
+/**
+ * GET /api/employees/meta — Return dropdowns data for employee forms
+ */
+async function getEmployeeMeta(req, res, next) {
+  try {
+    const departments = await db('departments').select('id', 'name', 'code', 'color').orderBy('name', 'asc');
+    const positions = await db('job_positions as jp')
+      .leftJoin('departments as d', 'jp.department_id', 'd.id')
+      .select('jp.id', 'jp.title', 'jp.grade', 'jp.department_id', 'd.name as department_name')
+      .orderBy('jp.title', 'asc');
+    const schedules = await db('working_schedules').select('id', 'name', 'schedule_type', 'weekly_hours').orderBy('name', 'asc');
+    const managers = await db('employees as e')
+      .leftJoin('job_positions as jp', 'e.job_position_id', 'jp.id')
+      .where('e.employment_status', '!=', 'Terminated')
+      .select(
+        'e.id',
+        db.raw("CONCAT(e.first_name, ' ', e.last_name) as full_name"),
+        'e.employee_id as emp_code',
+        'jp.title as position_title'
+      )
+      .orderBy('e.first_name', 'asc');
+
+    res.json({
+      success: true,
+      data: { departments, positions, schedules, managers }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getEmployees,
   getEmployeeById,
   getEmployee360,
+  getEmployeeMeta,
   createEmployee,
   updateEmployee,
   deleteEmployee

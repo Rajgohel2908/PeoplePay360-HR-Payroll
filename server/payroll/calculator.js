@@ -37,6 +37,13 @@ async function computePayrun(payrunId, userId) {
       throw new Error('No included employees selected for this payrun.');
     }
 
+    // Auto-update expired contracts before calculating
+    await trx('contracts')
+      .where('status', 'active')
+      .whereNotNull('end_date')
+      .where('end_date', '<', payrun.period_start)
+      .update({ status: 'expired', updated_at: new Date() });
+
     // 2. Remove existing generated payslips for this payrun if recomputing
     const existingPayslips = await trx('payslips').where('payrun_id', payrunId).select('id');
     const existingPayslipIds = existingPayslips.map(p => p.id);
@@ -53,7 +60,8 @@ async function computePayrun(payrunId, userId) {
     let payslipsCreatedCount = 0;
 
     for (const pe of payrunEmployees) {
-      // Step A: Resolve Contract for period
+      try {
+        // Step A: Resolve Contract for period
       const { contract, error: contractError } = await resolveContractForPeriod(
         pe.employee_id,
         payrun.period_start,
@@ -122,8 +130,8 @@ async function computePayrun(payrunId, userId) {
 
       const payslipNumber = `PS-${payrun.payrun_number}-${pe.emp_code}`;
 
-      // Step I: Insert Payslip
-      const [newPayslipId] = await trx('payslips').insert({
+      // Step I: Insert Payslip (MySQL: no .returning(), fetch ID via payslip_number)
+      await trx('payslips').insert({
         payslip_number: payslipNumber,
         payrun_id: payrunId,
         employee_id: pe.employee_id,
@@ -140,9 +148,11 @@ async function computePayrun(payrunId, userId) {
         net_salary: ruleResult.net,
         payment_status: 'Unpaid',
         email_status: 'Pending'
-      }).returning('id');
+      });
 
-      const payslipDbId = newPayslipId?.id || newPayslipId;
+      const insertedPayslip = await trx('payslips').where('payslip_number', payslipNumber).first();
+      const payslipDbId = insertedPayslip.id;
+
       payslipsCreatedCount++;
 
       // Step J: Insert Payslip Breakdown Lines
@@ -168,7 +178,21 @@ async function computePayrun(payrunId, userId) {
       overallNet += ruleResult.net;
       overallOvertime += (ruleResult.context.OVERTIME || 0);
       overallLop += (ruleResult.context.LOP_DEDUCTION || 0);
+    } catch (empErr) {
+      console.error(`[Calculator] Error computing payslip for employee ${pe.emp_code}:`, empErr.message);
+      await trx('payroll_validation_issues').insert({
+        payrun_id: payrunId,
+        employee_id: pe.employee_id,
+        category: 'Salary',
+        severity: 'blocker',
+        title: `Computation Error: ${pe.first_name} ${pe.last_name}`,
+        description: `Failed to compute salary: ${empErr.message}`,
+        impact: 'Payslip could not be generated for this employee.',
+        recommended_action: 'Check contract wage, schedule, or custom salary rules.',
+        is_resolved: false
+      });
     }
+  }
 
     // Step K: Update Payrun Record Totals
     await trx('payruns')

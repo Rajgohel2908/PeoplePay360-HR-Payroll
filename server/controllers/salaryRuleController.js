@@ -20,7 +20,7 @@ async function createRule(req, res, next) {
   try {
     const data = req.body;
 
-    const [newId] = await db('salary_rules').insert({
+    const [insertId] = await db('salary_rules').insert({
       structure_id: data.structure_id,
       name: data.name,
       code: data.code.toUpperCase(),
@@ -34,9 +34,9 @@ async function createRule(req, res, next) {
       condition_expression: data.condition_expression || null,
       depends_on_codes: data.depends_on_codes || null,
       is_active: data.is_active !== undefined ? data.is_active : true
-    }).returning('id');
+    });
 
-    const createdId = newId?.id || newId;
+    const createdId = insertId;
 
     await logAudit({
       userId: req.user?.id,
