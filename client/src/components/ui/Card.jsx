@@ -33,7 +33,7 @@ export function StatCard({
   title,
   value,
   subtitle,
-  icon: Icon,
+  icon,
   trend,
   trendPositive,
   variant = 'default',
@@ -82,9 +82,9 @@ export function StatCard({
             </div>
           )}
         </div>
-        {Icon && (
+        {icon && (
           <div className={`p-3 rounded-2xl shrink-0 ${iconVariants[variant] || iconVariants.default}`}>
-            <Icon className="w-5 h-5" />
+            {React.isValidElement(icon) ? icon : (() => { const IconComp = icon; return <IconComp className="w-5 h-5" />; })()}
           </div>
         )}
       </div>

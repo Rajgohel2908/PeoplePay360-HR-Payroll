@@ -5,7 +5,7 @@ export const Input = forwardRef(({
   label,
   error,
   helperText,
-  icon: Icon,
+  icon,
   className = '',
   containerClassName = '',
   id,
@@ -13,6 +13,13 @@ export const Input = forwardRef(({
   ...props
 }, ref) => {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+
+  const renderIcon = () => {
+    if (!icon) return null;
+    if (React.isValidElement(icon)) return icon;
+    const IconComponent = icon;
+    return <IconComponent className="h-4 w-4" />;
+  };
 
   return (
     <div className={`w-full ${containerClassName}`}>
@@ -22,9 +29,9 @@ export const Input = forwardRef(({
         </label>
       )}
       <div className="relative rounded-lg shadow-sm">
-        {Icon && (
+        {icon && (
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-            <Icon className="h-4 w-4" />
+            {renderIcon()}
           </div>
         )}
         <input
