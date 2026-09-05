@@ -138,10 +138,10 @@ export function Dashboard() {
     : defaultDepartmentCost;
 
   const defaultLeaveUsage = [
-    { name: 'Paid Annual Leave', value: 18, color: '#10b981' },
-    { name: 'Sick Leave', value: 8, color: '#f59e0b' },
-    { name: 'Casual Leave', value: 12, color: '#3b82f6' },
-    { name: 'Maternity/Paternity', value: 5, color: '#8b5cf6' }
+    { leave_name: 'Paid Annual Leave', total_days_taken: 18, color: '#10b981' },
+    { leave_name: 'Sick Leave', total_days_taken: 8, color: '#f59e0b' },
+    { leave_name: 'Casual Leave', total_days_taken: 12, color: '#3b82f6' },
+    { leave_name: 'Maternity/Paternity', total_days_taken: 5, color: '#8b5cf6' }
   ];
 
   const leaveUsageData = (charts?.leaveUsage && charts.leaveUsage.length > 0)
@@ -472,7 +472,11 @@ export function Dashboard() {
                   animationDuration={1300}
                   animationEasing="ease-out"
                   animationBegin={150}
-                />
+                >
+                  {leaveUsageData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || pieColors[index % pieColors.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

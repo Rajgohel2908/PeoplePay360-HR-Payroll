@@ -105,11 +105,28 @@ async function getDashboardSummary(req, res, next) {
       .select('d.name as department_name', 'd.color', db.raw('COUNT(e.id) as headcount'));
 
     // 9. Leave Usage Breakdown
-    const leaveUsage = await db('time_off_requests as r')
-      .join('time_off_types as t', 'r.leave_type_id', 't.id')
-      .where('r.status', 'approved')
-      .groupBy('t.id', 't.name', 't.color')
-      .select('t.name as leave_name', 't.color', db.raw('SUM(r.duration_days) as total_days_taken'));
+    const leaveTypes = await db('time_off_types as t')
+      .where('t.is_active', 1)
+      .select('t.id', 't.name as leave_name', 't.color');
+
+    const allocs = await db('time_off_allocations')
+      .groupBy('leave_type_id')
+      .select('leave_type_id', db.raw('SUM(used_days) as used'));
+
+    const reqs = await db('time_off_requests')
+      .where('status', 'approved')
+      .groupBy('leave_type_id')
+      .select('leave_type_id', db.raw('SUM(duration_days) as approved_days'));
+
+    const allocMap = {}, reqMap = {};
+    allocs.forEach(a => { allocMap[a.leave_type_id] = parseFloat(a.used || 0); });
+    reqs.forEach(r => { reqMap[r.leave_type_id] = parseFloat(r.approved_days || 0); });
+
+    const leaveUsage = leaveTypes.map(t => ({
+      leave_name: t.leave_name,
+      color: t.color || '#8b5cf6',
+      total_days_taken: (allocMap[t.id] || 0) + (reqMap[t.id] || 0)
+    }));
 
     // 10. Operational Actionable Alerts List
     const alerts = [];
