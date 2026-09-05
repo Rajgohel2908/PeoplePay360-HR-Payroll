@@ -11,7 +11,6 @@ import {
   CheckCircle2, 
   RefreshCw,
   Sliders,
-  DollarSign,
   AlertCircle
 } from 'lucide-react';
 import { getSystemSettings, updateSystemSetting } from '../../api/client';
@@ -205,7 +204,7 @@ export default function SystemSettings() {
                   <Input 
                     value={settings.currency_symbol || '₹'} 
                     onChange={(e) => handleChange('currency_symbol', e.target.value)} 
-                    placeholder="₹, $, €, £"
+                    placeholder="e.g. ₹"
                   />
                 </div>
 

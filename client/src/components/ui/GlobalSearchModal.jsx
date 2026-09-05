@@ -1,7 +1,7 @@
 // client/src/components/ui/GlobalSearchModal.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, User, FileText, DollarSign, Calendar, ArrowRight, X } from 'lucide-react';
+import { Search, User, FileText, IndianRupee, Calendar, ArrowRight, X } from 'lucide-react';
 import api from '../../api/client';
 
 export function GlobalSearchModal({ isOpen, onClose }) {
@@ -188,7 +188,7 @@ export function GlobalSearchModal({ isOpen, onClose }) {
                           className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors group"
                         >
                           <div className="flex items-center gap-3">
-                            <DollarSign className="w-4 h-4 text-sky-600" />
+                            <IndianRupee className="w-4 h-4 text-sky-600" />
                             <div>
                               <p className="font-semibold text-slate-900">{ps.payslip_number} ({ps.first_name} {ps.last_name})</p>
                               <p className="text-[11px] text-slate-500">Net Pay: ₹{parseFloat(ps.net_salary).toLocaleString('en-IN')}</p>

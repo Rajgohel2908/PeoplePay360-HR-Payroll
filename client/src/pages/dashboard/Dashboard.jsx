@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
-  DollarSign,
+  IndianRupee,
   Receipt,
   Palmtree,
   Activity,
@@ -189,7 +189,7 @@ export function Dashboard() {
             variant="primary"
             size="sm"
             onClick={() => navigate('/payroll/wizard')}
-            icon={DollarSign}
+            icon={IndianRupee}
           >
             New Payrun Wizard
           </Button>
@@ -238,7 +238,7 @@ export function Dashboard() {
           title="Total Gross Payroll"
           value={formatCurrency(kpis.totalGrossSalary)}
           subtitle="Current active payroll cycle"
-          icon={DollarSign}
+          icon={IndianRupee}
           variant="blue"
           onClick={() => navigate('/payroll')}
         />

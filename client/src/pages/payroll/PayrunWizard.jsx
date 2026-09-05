@@ -9,7 +9,6 @@ import {
   Users,
   Calendar,
   AlertTriangle,
-  DollarSign,
   ShieldCheck
 } from 'lucide-react';
 import api from '../../api/client';
