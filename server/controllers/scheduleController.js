@@ -62,14 +62,14 @@ async function createSchedule(req, res, next) {
       totalWeeklyHours = 40.0;
     }
 
-    const [newId] = await db('working_schedules').insert({
+    const [insertId] = await db('working_schedules').insert({
       name,
       schedule_type: schedule_type || 'standard',
       timezone: timezone || 'Asia/Kolkata',
       weekly_hours: totalWeeklyHours
-    }).returning('id');
+    });
 
-    const scheduleDbId = newId?.id || newId;
+    const scheduleDbId = insertId;
 
     if (days && Array.isArray(days)) {
       for (const d of days) {
@@ -98,7 +98,7 @@ async function createSchedule(req, res, next) {
     });
 
     const result = await db('working_schedules').where('id', scheduleDbId).first();
-    result.days = await db('schedule_days').where('schedule_id', scheduleDbId);
+    result.days = await db('schedule_days').where('schedule_id', scheduleDbId).orderBy('id', 'asc');
 
     res.status(201).json({
       success: true,
@@ -110,8 +110,95 @@ async function createSchedule(req, res, next) {
   }
 }
 
+async function updateSchedule(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { name, schedule_type, timezone, days } = req.body;
+
+    const existing = await db('working_schedules').where('id', id).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, code: 'SCHEDULE_NOT_FOUND', message: 'Working schedule not found.' });
+    }
+
+    let totalWeeklyHours = existing.weekly_hours;
+    if (days && Array.isArray(days)) {
+      totalWeeklyHours = 0;
+      days.forEach(d => { if (d.is_working) totalWeeklyHours += parseFloat(d.expected_hours || 8.0); });
+    }
+
+    await db('working_schedules').where('id', id).update({
+      name: name || existing.name,
+      schedule_type: schedule_type || existing.schedule_type,
+      timezone: timezone || existing.timezone,
+      weekly_hours: totalWeeklyHours,
+      updated_at: new Date()
+    });
+
+    if (days && Array.isArray(days)) {
+      await db('schedule_days').where('schedule_id', id).delete();
+      for (const d of days) {
+        await db('schedule_days').insert({
+          schedule_id: id,
+          day_of_week: d.day_of_week.toLowerCase(),
+          is_working: d.is_working,
+          start_time: d.start_time || '09:00',
+          end_time: d.end_time || '18:00',
+          break_duration_mins: d.break_duration_mins || 60,
+          expected_hours: d.is_working ? parseFloat(d.expected_hours || 8.0) : 0
+        });
+      }
+    }
+
+    const result = await db('working_schedules').where('id', id).first();
+    result.days = await db('schedule_days').where('schedule_id', id).orderBy('id', 'asc');
+
+    res.json({ success: true, message: 'Working schedule updated successfully.', data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteSchedule(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const existing = await db('working_schedules').where('id', id).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Schedule not found.' });
+    }
+
+    const assignedContracts = await db('contracts').where('working_schedule_id', id).count('id as count').first();
+    if (parseInt(assignedContracts.count, 10) > 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'SCHEDULE_IN_USE',
+        message: `Cannot delete schedule because it is currently assigned to ${assignedContracts.count} active contract(s).`
+      });
+    }
+
+    await db('schedule_days').where('schedule_id', id).delete();
+    await db('working_schedules').where('id', id).delete();
+
+    await logAudit({
+      userId: req.user?.id,
+      userName: req.user?.username,
+      userRole: req.user?.role,
+      action: 'DELETE_SCHEDULE',
+      entity: 'Schedule',
+      entityId: String(id),
+      reason: `Deleted schedule ${existing.name}`
+    });
+
+    res.json({ success: true, message: 'Working schedule deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getSchedules,
   getScheduleById,
-  createSchedule
+  createSchedule,
+  updateSchedule,
+  deleteSchedule
 };

@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import GlobalSearchModal from '../ui/GlobalSearchModal';
+import Logo from '../ui/Logo';
 
 export function Header({ onMobileMenuToggle }) {
   const { user, logout, switchDemoRole } = useAuth();
@@ -82,6 +83,10 @@ export function Header({ onMobileMenuToggle }) {
           >
             <Menu className="w-5 h-5" />
           </button>
+
+          <div className="lg:hidden flex items-center">
+            <Logo variant="light" size="xs" className="h-7 w-auto" />
+          </div>
 
           <button
             onClick={() => setShowSearch(true)}

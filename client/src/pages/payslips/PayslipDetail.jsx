@@ -20,6 +20,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../../components/ui/Logo';
 
 export function PayslipDetail() {
   const { id } = useParams();
@@ -108,11 +109,10 @@ export function PayslipDetail() {
         {/* Document Header */}
         <div className="bg-slate-900 text-white p-6 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-black tracking-wider text-white">PEOPLEPAY</span>
-              <span className="text-lg font-bold text-emerald-400">360</span>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Logo variant="dark" size="sm" className="h-8 w-auto" />
             </div>
-            <p className="text-xs text-slate-300 font-medium">PeoplePay360 Global Technologies Ltd.</p>
+            <p className="text-xs text-slate-300 font-medium">PeoplePay Global Technologies Ltd.</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Level 14, Prestige Tech Park, Outer Ring Road, Bengaluru &bull; GST: 29ABCDE1234F1Z5</p>
           </div>
 

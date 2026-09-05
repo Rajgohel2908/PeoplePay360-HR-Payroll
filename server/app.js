@@ -6,6 +6,7 @@ const morgan = require('morgan');
 require('dotenv').config();
 
 const { errorHandler } = require('./middleware/errorHandler');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 
 // Route Imports
 const authRoutes = require('./routes/authRoutes');
@@ -47,12 +48,16 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     platform: 'PEOPLEPAY360 HR & Payroll Engine',
+    database: 'MySQL',
     timestamp: new Date().toISOString()
   });
 });
 
+// General API rate limiting
+app.use('/api', apiLimiter);
+
 // Mount Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/schedules', scheduleRoutes);

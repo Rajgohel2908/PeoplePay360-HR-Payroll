@@ -28,7 +28,7 @@ async function getPayruns(req, res, next) {
       query = query.where('pr.status', status);
     }
     if (year) {
-      query = query.where('pr.period_start', 'like', `${year}%`);
+      query = query.whereRaw('YEAR(pr.period_start) = ?', [parseInt(year, 10)]);
     }
 
     const payruns = await query.orderBy('pr.period_start', 'desc');
@@ -232,7 +232,7 @@ async function createPayrun(req, res, next) {
     const payrunNumber = `PR-${startMonth}-${Date.now().toString().slice(-4)}`;
 
     const payrunResult = await db.transaction(async (trx) => {
-      const [newId] = await trx('payruns').insert({
+      await trx('payruns').insert({
         payrun_number: payrunNumber,
         title: title || `${startMonth} Monthly Payroll`,
         period_start,
@@ -244,9 +244,11 @@ async function createPayrun(req, res, next) {
         status: PAYRUN_STATUS.DRAFT,
         prepared_by: req.user.id,
         notes: notes || null
-      }).returning('id');
+      });
 
-      const payrunDbId = newId?.id || newId;
+      // MySQL: get last inserted ID
+      const newPayrun = await trx('payruns').where('payrun_number', payrunNumber).first();
+      const payrunDbId = newPayrun.id;
 
       // Add selected employees into payrun_employees junction
       if (selected_employee_ids && selected_employee_ids.length > 0) {
@@ -513,6 +515,97 @@ async function markPaid(req, res, next) {
   }
 }
 
+/**
+ * Cancel a Payrun (can only cancel Draft/Computed/Validation_Required payruns)
+ */
+async function cancelPayrun(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const payrun = await db('payruns').where('id', id).first();
+    if (!payrun) {
+      return res.status(404).json({ success: false, message: 'Payrun not found.' });
+    }
+
+    const nonCancellable = [PAYRUN_STATUS.APPROVED, PAYRUN_STATUS.PAID, PAYRUN_STATUS.ARCHIVED];
+    if (nonCancellable.includes(payrun.status)) {
+      return res.status(400).json({
+        success: false,
+        code: 'CANNOT_CANCEL',
+        message: `Cannot cancel a payrun with status '${payrun.status}'. Only draft, computed, or validation-required payruns can be cancelled.`
+      });
+    }
+
+    await db.transaction(async (trx) => {
+      await trx('payruns').where('id', id).update({ status: PAYRUN_STATUS.CANCELLED, updated_at: new Date() });
+      await trx('payslips').where('payrun_id', id).delete();
+      await trx('payslip_lines').whereIn('payslip_id',
+        db('payslips').where('payrun_id', id).select('id')
+      ).delete();
+
+      await logAudit({
+        userId: req.user.id,
+        userName: req.user.username,
+        userRole: req.user.role,
+        action: 'CANCEL_PAYRUN',
+        entity: 'Payrun',
+        entityId: id,
+        oldValues: JSON.stringify({ status: payrun.status }),
+        newValues: JSON.stringify({ status: PAYRUN_STATUS.CANCELLED }),
+        reason: reason || 'Payrun cancelled',
+        ipAddress: req.ip
+      });
+    });
+
+    res.json({
+      success: true,
+      message: `Payrun ${payrun.payrun_number} has been cancelled.`,
+      data: await db('payruns').where('id', id).first()
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Send payslip emails for a payrun
+ */
+async function sendPayslips(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { payslip_ids } = req.body;
+    const { dispatchBulkPayslips } = require('../services/emailService');
+
+    const payrun = await db('payruns').where('id', id).first();
+    if (!payrun) {
+      return res.status(404).json({ success: false, message: 'Payrun not found.' });
+    }
+
+    const result = await dispatchBulkPayslips(id, payslip_ids || null);
+
+    await logAudit({
+      userId: req.user.id,
+      userName: req.user.username,
+      userRole: req.user.role,
+      action: 'SEND_PAYSLIP_EMAILS',
+      entity: 'Payrun',
+      entityId: id,
+      newValues: JSON.stringify({ total: result.total, sent: result.sent, failed: result.failed }),
+      reason: 'Bulk payslip email dispatch',
+      ipAddress: req.ip
+    });
+
+    res.json({
+      success: true,
+      message: `Payslip dispatch completed: ${result.sent} sent, ${result.failed + result.missingEmail} failed.`,
+      data: result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getPayruns,
   getPayrunById,
@@ -522,5 +615,7 @@ module.exports = {
   validatePayrun,
   resolveValidationIssue,
   approvePayrun,
-  markPaid
+  markPaid,
+  cancelPayrun,
+  sendPayslips
 };

@@ -67,8 +67,12 @@ export function Sidebar({ collapsed, onToggle }) {
     >
       {/* Brand Header */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-stone-100 bg-white">
-        <div className="flex items-center overflow-hidden">
-          <Logo size={collapsed ? 'sm' : 'md'} showText={!collapsed} />
+        <div className="flex items-center gap-3 overflow-hidden">
+          {collapsed ? (
+            <Logo variant="icon" size="sm" showText={false} className="shrink-0" />
+          ) : (
+            <Logo size="md" showText={true} className="shrink-0 max-h-9" />
+          )}
         </div>
 
         <button

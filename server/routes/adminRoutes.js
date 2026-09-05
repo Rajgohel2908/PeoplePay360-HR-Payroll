@@ -8,7 +8,13 @@ const {
   getSettings,
   updateSetting,
   getAuditLogs,
-  globalSearch
+  globalSearch,
+  getDepartments,
+  createDepartment,
+  updateDepartment,
+  getPositions,
+  createPosition,
+  updatePosition
 } = require('../controllers/adminController');
 const { authenticateToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
@@ -30,5 +36,15 @@ router.put('/users/:id', requireRole([ROLES.ADMIN]), updateUser);
 // Settings
 router.get('/settings', requireRole([ROLES.ADMIN, ROLES.HR_PAYROLL_MANAGER]), getSettings);
 router.put('/settings', requireRole([ROLES.ADMIN]), updateSetting);
+
+// Departments
+router.get('/departments', getDepartments);
+router.post('/departments', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER]), createDepartment);
+router.put('/departments/:id', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER]), updateDepartment);
+
+// Job Positions
+router.get('/positions', getPositions);
+router.post('/positions', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER]), createPosition);
+router.put('/positions/:id', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER]), updatePosition);
 
 module.exports = router;

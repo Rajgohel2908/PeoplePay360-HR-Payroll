@@ -5,7 +5,8 @@ const {
   getAttendance,
   checkIn,
   checkOut,
-  correctAttendance
+  correctAttendance,
+  createManualAttendance
 } = require('../controllers/attendanceController');
 const { authenticateToken } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
@@ -17,6 +18,6 @@ router.get('/', getAttendance);
 router.post('/check-in', checkIn);
 router.post('/check-out', checkOut);
 router.post('/correct/:id', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER]), correctAttendance);
-router.post('/manual', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER]), correctAttendance);
+router.post('/manual', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER]), createManualAttendance);
 
 module.exports = router;
