@@ -1,5 +1,5 @@
 // client/src/components/ui/DataTable.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal } from 'lucide-react';
 import EmptyState from './EmptyState';
 
@@ -17,6 +17,8 @@ export function DataTable({
   onSelectAll,
   pagination,
   onPageChange,
+  pageSize = 10,
+  enablePagination = true,
   emptyTitle = 'No records found',
   emptyDescription = 'There are no items to display matching your criteria.',
   emptyAction,
@@ -27,6 +29,14 @@ export function DataTable({
   const [localSearch, setLocalSearch] = useState('');
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
+  const [clientPage, setClientPage] = useState(1);
+
+  const effectiveSearch = searchValue !== undefined ? searchValue : localSearch;
+
+  // Reset to page 1 whenever search changes
+  useEffect(() => {
+    setClientPage(1);
+  }, [effectiveSearch]);
 
   const handleSort = (colKey) => {
     if (sortColumn === colKey) {
@@ -36,8 +46,6 @@ export function DataTable({
       setSortDirection('asc');
     }
   };
-
-  const effectiveSearch = searchValue !== undefined ? searchValue : localSearch;
 
   let filteredData = [...data];
   if (!onSearchChange && effectiveSearch) {
@@ -67,11 +75,44 @@ export function DataTable({
 
   const allSelected = data.length > 0 && selectedRows.length === data.length;
 
+  // Pagination calculation
+  const isExternalPagination = Boolean(pagination && onPageChange);
+  const effectiveLimit = isExternalPagination ? (pagination.limit || pageSize) : pageSize;
+  const totalRecords = isExternalPagination ? (pagination.total ?? filteredData.length) : filteredData.length;
+  const totalPages = isExternalPagination
+    ? (pagination.totalPages || Math.max(1, Math.ceil(totalRecords / effectiveLimit)))
+    : Math.max(1, Math.ceil(totalRecords / effectiveLimit));
+
+  const currentPage = isExternalPagination ? (pagination.page || 1) : Math.min(clientPage, totalPages);
+
+  // Sliced data to display
+  let displayedData = filteredData;
+  if (enablePagination) {
+    if (!isExternalPagination) {
+      const startIdx = (currentPage - 1) * effectiveLimit;
+      displayedData = filteredData.slice(startIdx, startIdx + effectiveLimit);
+    } else if (filteredData.length > effectiveLimit) {
+      const startIdx = (currentPage - 1) * effectiveLimit;
+      displayedData = filteredData.slice(startIdx, startIdx + effectiveLimit);
+    }
+  }
+
+  const handlePageSelect = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    if (isExternalPagination) {
+      onPageChange(newPage);
+    } else {
+      setClientPage(newPage);
+    }
+  };
+
+  const showPaginationFooter = enablePagination && totalRecords > 0;
+
   return (
     <div className={`bg-white rounded-xl border border-slate-200/80 shadow-card overflow-hidden ${className}`}>
       {/* Top Controls Bar */}
       {(searchable || filters || bulkActions) && (
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50/50">
+        <div className="p-5 sm:px-6 sm:py-5 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50/50">
           {searchable && (
             <div className="relative flex-1 max-w-sm">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -106,7 +147,7 @@ export function DataTable({
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] uppercase tracking-wider font-semibold text-slate-600">
               {selectable && (
-                <th className="w-10 px-4 py-3.5 text-center">
+                <th className="w-10 px-4 py-4 text-center">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -123,7 +164,7 @@ export function DataTable({
                 return (
                   <th
                     key={colKey || idx}
-                    className={`px-4 py-3.5 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${isSortable ? 'cursor-pointer select-none hover:bg-slate-100/80 transition-colors' : ''} ${col.headerClassName || ''}`}
+                    className={`px-5 py-4 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${isSortable ? 'cursor-pointer select-none hover:bg-slate-100/80 transition-colors' : ''} ${col.headerClassName || ''}`}
                     onClick={() => isSortable && handleSort(colKey)}
                   >
                     <div className={`inline-flex items-center gap-1.5 ${col.align === 'right' ? 'justify-end w-full' : ''}`}>
@@ -156,14 +197,14 @@ export function DataTable({
                   ))}
                 </tr>
               ))
-            ) : filteredData.length === 0 ? (
+            ) : displayedData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + (selectable ? 1 : 0)} className="py-12 px-4 text-center">
                   <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />
                 </td>
               </tr>
             ) : (
-              filteredData.map((row, rIdx) => {
+              displayedData.map((row, rIdx) => {
                 const isSelected = selectedRows.includes(row.id);
                 return (
                   <tr
@@ -171,7 +212,7 @@ export function DataTable({
                     className={`hover:bg-slate-50/80 transition-colors duration-100 ${isSelected ? 'bg-emerald-50/40' : ''}`}
                   >
                     {selectable && (
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-4 py-4 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -187,7 +228,7 @@ export function DataTable({
                       return (
                         <td
                           key={colKey || cIdx}
-                          className={`px-4 py-3.5 ${col.align === 'right' ? 'text-right font-mono' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.className || ''}`}
+                          className={`px-5 py-4 ${col.align === 'right' ? 'text-right font-mono' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.className || ''}`}
                         >
                           {cellValue}
                         </td>
@@ -202,25 +243,27 @@ export function DataTable({
       </div>
 
       {/* Pagination Footer */}
-      {pagination && (
-        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-slate-50/40">
+      {showPaginationFooter && (
+        <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 bg-slate-50/40">
           <div>
-            Showing <span className="font-semibold text-slate-700">{(pagination.page - 1) * pagination.limit + 1}</span> to <span className="font-semibold text-slate-700">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-semibold text-slate-700">{pagination.total}</span> records
+            Showing <span className="font-semibold text-slate-700">{(currentPage - 1) * effectiveLimit + 1}</span> to <span className="font-semibold text-slate-700">{Math.min(currentPage * effectiveLimit, totalRecords)}</span> of <span className="font-semibold text-slate-700">{totalRecords}</span> records
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => onPageChange && onPageChange(pagination.page - 1)}
-              disabled={pagination.page <= 1}
+              type="button"
+              onClick={() => handlePageSelect(currentPage - 1)}
+              disabled={currentPage <= 1}
               className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="px-2.5 py-1 rounded-md bg-white border border-slate-200 font-semibold text-slate-800">
-              {pagination.page} / {pagination.totalPages || 1}
+              {currentPage} / {totalPages || 1}
             </span>
             <button
-              onClick={() => onPageChange && onPageChange(pagination.page + 1)}
-              disabled={pagination.page >= pagination.totalPages}
+              type="button"
+              onClick={() => handlePageSelect(currentPage + 1)}
+              disabled={currentPage >= totalPages}
               className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />

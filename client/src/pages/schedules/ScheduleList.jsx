@@ -8,11 +8,13 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { PaginationControls } from '../../components/ui/PaginationControls';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function ScheduleList() {
   const [schedules, setSchedules] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { showSuccess, showError } = useNotifications();
@@ -110,7 +112,7 @@ export function ScheduleList() {
 
       {/* Schedules Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {schedules.map((s) => (
+        {schedules.slice((currentPage - 1) * 10, currentPage * 10).map((s) => (
           <Card key={s.id} title={s.name} subtitle={`Timezone: ${s.timezone}`}>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 text-xs text-emerald-800">
@@ -139,6 +141,15 @@ export function ScheduleList() {
           </Card>
         ))}
       </div>
+
+      <PaginationControls
+        currentPage={currentPage}
+        pageSize={10}
+        totalItems={schedules.length}
+        onPageChange={setCurrentPage}
+        itemLabel="schedules"
+        className="bg-white rounded-xl border border-slate-200"
+      />
 
       {/* Create Schedule Modal with 7-Day Configurator */}
       <Modal

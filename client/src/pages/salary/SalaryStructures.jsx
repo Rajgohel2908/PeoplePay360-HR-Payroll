@@ -19,12 +19,14 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { PaginationControls } from '../../components/ui/PaginationControls';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function SalaryStructures() {
   const [structures, setStructures] = useState([]);
   const [selectedStructure, setSelectedStructure] = useState(null);
+  const [rulesPage, setRulesPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [showSimModal, setShowSimModal] = useState(false);
@@ -181,7 +183,7 @@ export function SalaryStructures() {
         {structures.map((s) => (
           <button
             key={s.id}
-            onClick={() => setSelectedStructure(s)}
+            onClick={() => { setSelectedStructure(s); setRulesPage(1); }}
             className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
               selectedStructure?.id === s.id
                 ? 'bg-slate-900 text-white border-slate-900 shadow-md'
@@ -236,7 +238,7 @@ export function SalaryStructures() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {selectedStructure.rules?.map((r) => (
+                {selectedStructure.rules?.slice((rulesPage - 1) * 10, rulesPage * 10).map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-bold text-slate-500">{r.sequence}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{r.name}</td>
@@ -263,6 +265,13 @@ export function SalaryStructures() {
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            currentPage={rulesPage}
+            pageSize={10}
+            totalItems={selectedStructure.rules?.length || 0}
+            onPageChange={setRulesPage}
+            itemLabel="rules"
+          />
         </Card>
       )}
 

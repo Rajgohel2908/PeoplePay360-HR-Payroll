@@ -13,7 +13,7 @@ async function getPayslips(req, res, next) {
       payment_status,
       search,
       page = 1,
-      limit = 30
+      limit = 10
     } = req.query;
 
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);

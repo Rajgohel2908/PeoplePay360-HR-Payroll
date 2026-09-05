@@ -144,7 +144,7 @@ async function updateSetting(req, res, next) {
 
 async function getAuditLogs(req, res, next) {
   try {
-    const { entity, action, page = 1, limit = 50 } = req.query;
+    const { entity, action, page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
     let query = db('audit_logs');

@@ -21,6 +21,7 @@ import { Card, StatCard } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { DataTable } from '../../components/ui/DataTable';
+import { PaginationControls } from '../../components/ui/PaginationControls';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Modal } from '../../components/ui/Modal';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -31,6 +32,7 @@ export function PayrollDetail() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('payslips'); // 'payslips' | 'variances'
+  const [variancePage, setVariancePage] = useState(1);
   const [showPayConfirm, setShowPayConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -366,7 +368,7 @@ export function PayrollDetail() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {variances.map((v) => (
+                {variances.slice((variancePage - 1) * 10, variancePage * 10).map((v) => (
                   <tr key={v.id} className={`hover:bg-slate-50 ${v.is_flagged ? 'bg-amber-50/40' : ''}`}>
                     <td className="py-3 px-4 font-bold text-slate-900">{v.first_name} {v.last_name}</td>
                     <td className="py-3 px-4 text-slate-600">{formatCurrency(v.prev_net)}</td>
@@ -387,6 +389,13 @@ export function PayrollDetail() {
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            currentPage={variancePage}
+            pageSize={10}
+            totalItems={variances.length}
+            onPageChange={setVariancePage}
+            itemLabel="variances"
+          />
         </Card>
       )}
 

@@ -17,11 +17,13 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { DataTable } from '../../components/ui/DataTable';
+import { PaginationControls } from '../../components/ui/PaginationControls';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 export function ReportsDashboard() {
   const [activeReport, setActiveReport] = useState('payroll-summary');
   const [reportData, setReportData] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   const { showSuccess, showError } = useNotifications();
@@ -41,6 +43,7 @@ export function ReportsDashboard() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     loadReport(activeReport);
   }, [activeReport]);
 
@@ -121,9 +124,12 @@ export function ReportsDashboard() {
       </div>
 
       {/* Report Data Table Container */}
-      <Card noPadding>
-        <div className="overflow-x-auto">
-          {activeReport === 'payroll-summary' && (
+      {(() => {
+        const paginatedData = reportData.slice((currentPage - 1) * 10, currentPage * 10);
+        return (
+          <Card noPadding>
+            <div className="overflow-x-auto">
+              {activeReport === 'payroll-summary' && (
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
                 <tr>
@@ -137,7 +143,7 @@ export function ReportsDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {reportData.map((row, idx) => (
+                {paginatedData.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-mono font-bold text-slate-900">{row.payrun_number}</td>
                     <td className="py-3 px-4 text-slate-600">{formatDate(row.period_start)} &rarr; {formatDate(row.period_end)}</td>
@@ -169,7 +175,7 @@ export function ReportsDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {reportData.map((row, idx) => (
+                {paginatedData.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-bold text-slate-900">{row.department_name}</td>
                     <td className="py-3 px-4 font-mono text-slate-500">{row.department_code}</td>
@@ -197,7 +203,7 @@ export function ReportsDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {reportData.map((row, idx) => (
+                {paginatedData.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-bold text-slate-900">{row.employee_name} ({row.emp_code})</td>
                     <td className="py-3 px-4 text-slate-600">{row.department_name}</td>
@@ -226,7 +232,7 @@ export function ReportsDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {reportData.map((row, idx) => (
+                {paginatedData.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-bold text-slate-900">{row.employee_name} ({row.emp_code})</td>
                     <td className="py-3 px-4 text-slate-600">{row.department_name}</td>
@@ -255,7 +261,7 @@ export function ReportsDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {reportData.map((row, idx) => (
+                {paginatedData.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-mono font-bold text-slate-900">{row.contract_id}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{row.employee_name} ({row.emp_code})</td>
@@ -273,8 +279,17 @@ export function ReportsDashboard() {
               </tbody>
             </table>
           )}
-        </div>
-      </Card>
+            </div>
+            <PaginationControls
+              currentPage={currentPage}
+              pageSize={10}
+              totalItems={reportData.length}
+              onPageChange={setCurrentPage}
+              itemLabel="records"
+            />
+          </Card>
+        );
+      })()}
     </div>
   );
 }

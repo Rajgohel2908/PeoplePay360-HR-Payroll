@@ -18,10 +18,12 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { PaginationControls } from '../../components/ui/PaginationControls';
 import { useNotifications } from '../../contexts/NotificationContext';
 
 export function UserManagement() {
   const [users, setUsers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -140,7 +142,7 @@ export function UserManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {users.map((u) => (
+              {users.slice((currentPage - 1) * 10, currentPage * 10).map((u) => (
                 <tr key={u.id} className="hover:bg-slate-50">
                   <td className="py-3 px-4">
                     <p className="font-bold text-slate-900">{u.username}</p>
@@ -179,6 +181,13 @@ export function UserManagement() {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          currentPage={currentPage}
+          pageSize={10}
+          totalItems={users.length}
+          onPageChange={setCurrentPage}
+          itemLabel="users"
+        />
       </Card>
 
       {/* Provision User Modal */}

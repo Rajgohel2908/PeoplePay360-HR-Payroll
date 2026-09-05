@@ -21,6 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { PaginationControls } from '../../components/ui/PaginationControls';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -29,6 +30,7 @@ export function PayrollValidationCenter() {
   const [payrunData, setPayrunData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'blockers' | 'warnings' | 'resolved'
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
@@ -184,7 +186,7 @@ export function PayrollValidationCenter() {
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
-          onClick={() => setActiveFilter('all')}
+          onClick={() => { setActiveFilter('all'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
             activeFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
@@ -192,7 +194,7 @@ export function PayrollValidationCenter() {
           All Issues ({issues.length})
         </button>
         <button
-          onClick={() => setActiveFilter('blockers')}
+          onClick={() => { setActiveFilter('blockers'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
             activeFilter === 'blockers' ? 'bg-red-600 text-white' : 'text-red-700 hover:bg-red-50'
           }`}
@@ -200,7 +202,7 @@ export function PayrollValidationCenter() {
           🔴 Blockers ({blockers.length})
         </button>
         <button
-          onClick={() => setActiveFilter('warnings')}
+          onClick={() => { setActiveFilter('warnings'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
             activeFilter === 'warnings' ? 'bg-amber-600 text-white' : 'text-amber-700 hover:bg-amber-50'
           }`}
@@ -208,7 +210,7 @@ export function PayrollValidationCenter() {
           🟠 Warnings ({warnings.length})
         </button>
         <button
-          onClick={() => setActiveFilter('resolved')}
+          onClick={() => { setActiveFilter('resolved'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
             activeFilter === 'resolved' ? 'bg-emerald-600 text-white' : 'text-emerald-700 hover:bg-emerald-50'
           }`}
@@ -226,7 +228,7 @@ export function PayrollValidationCenter() {
             <p className="text-xs text-slate-400 mt-0.5">Everything looks clean in this category.</p>
           </Card>
         ) : (
-          filteredIssues.map((issue) => (
+          filteredIssues.slice((currentPage - 1) * 10, currentPage * 10).map((issue) => (
             <div
               key={issue.id}
               className={`p-5 rounded-2xl border shadow-card transition-all ${
@@ -313,6 +315,15 @@ export function PayrollValidationCenter() {
           ))
         )}
       </div>
+
+      <PaginationControls
+        currentPage={currentPage}
+        pageSize={10}
+        totalItems={filteredIssues.length}
+        onPageChange={setCurrentPage}
+        itemLabel="validation issues"
+        className="bg-white rounded-xl border border-slate-200"
+      />
 
       {/* Resolve Issue Modal */}
       <Modal

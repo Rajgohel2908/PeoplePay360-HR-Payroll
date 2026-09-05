@@ -42,7 +42,7 @@ export default function AuditLogViewer() {
       setLoading(true);
       const params = {
         page,
-        limit: 25,
+        limit: 10,
         ...(selectedEntity && { entity: selectedEntity }),
         ...(selectedAction && { action: selectedAction })
       };

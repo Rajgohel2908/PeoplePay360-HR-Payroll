@@ -14,7 +14,7 @@ export function Card({
   return (
     <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-card transition-all duration-200 ${className}`} {...props}>
       {(title || action) && (
-        <div className={`px-5 py-4 flex items-center justify-between gap-4 ${headerBorder ? 'border-b border-slate-100' : ''}`}>
+        <div className={`px-6 py-5 flex items-center justify-between gap-4 ${headerBorder ? 'border-b border-slate-100' : ''}`}>
           <div>
             {title && <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">{title}</h3>}
             {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
@@ -22,7 +22,7 @@ export function Card({
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className={noPadding ? '' : 'p-5'}>
+      <div className={noPadding ? '' : 'p-6 sm:p-7'}>
         {children}
       </div>
     </div>
@@ -54,7 +54,7 @@ export function StatCard({
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-2xl border border-slate-200/80 p-5 shadow-card hover:shadow-md transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-emerald-300' : ''} ${className}`}
+      className={`bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-card hover:shadow-md transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-emerald-300' : ''} ${className}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">

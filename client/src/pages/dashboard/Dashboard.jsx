@@ -137,9 +137,9 @@ export function Dashboard() {
   const pieColors = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899'];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pt-2 sm:pt-4">
       {/* Executive Welcome Banner (Light Sky-Blue with Crystal-Clear High-Contrast Text) */}
-      <div className="p-5 sm:p-6 bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/40 border border-sky-200/90 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="p-6 sm:p-8 bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/40 border border-sky-200/90 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-800 border border-sky-200/80 shadow-xs flex items-center justify-center font-black text-xl shrink-0">
             {user?.first_name ? user.first_name[0] : (user?.username ? user.username[0].toUpperCase() : 'P')}

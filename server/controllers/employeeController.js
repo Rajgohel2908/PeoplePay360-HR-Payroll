@@ -9,7 +9,7 @@ async function getEmployees(req, res, next) {
   try {
     const {
       page = 1,
-      limit = 20,
+      limit = 10,
       search = '',
       department_id,
       job_position_id,

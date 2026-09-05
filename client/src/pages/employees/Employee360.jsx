@@ -32,6 +32,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { DataTable } from '../../components/ui/DataTable';
+import { PaginationControls } from '../../components/ui/PaginationControls';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
@@ -43,6 +44,9 @@ export function Employee360() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [attPage, setAttPage] = useState(1);
+  const [timeOffPage, setTimeOffPage] = useState(1);
+  const [payslipPage, setPayslipPage] = useState(1);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -477,7 +481,7 @@ export function Employee360() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {attendance.recentLogs?.map((log) => (
+                  {attendance.recentLogs?.slice((attPage - 1) * 10, attPage * 10).map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3 font-semibold text-slate-900">{formatDate(log.date)}</td>
                       <td className="py-2.5 px-3 font-mono">{log.check_in || '--:--'}</td>
@@ -498,6 +502,13 @@ export function Employee360() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={attPage}
+              pageSize={10}
+              totalItems={attendance.recentLogs?.length || 0}
+              onPageChange={setAttPage}
+              itemLabel="logs"
+            />
           </Card>
         </div>
       )}
@@ -547,7 +558,7 @@ export function Employee360() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {timeOff.requests?.map((req) => (
+                  {timeOff.requests?.slice((timeOffPage - 1) * 10, timeOffPage * 10).map((req) => (
                     <tr key={req.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3 font-semibold text-slate-900">{req.leave_type_name}</td>
                       <td className="py-2.5 px-3 font-bold">{req.duration_days} Days</td>
@@ -567,6 +578,13 @@ export function Employee360() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              currentPage={timeOffPage}
+              pageSize={10}
+              totalItems={timeOff.requests?.length || 0}
+              onPageChange={setTimeOffPage}
+              itemLabel="requests"
+            />
           </Card>
         </div>
       )}
@@ -588,7 +606,7 @@ export function Employee360() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {payslips.map((ps) => (
+                {payslips.slice((payslipPage - 1) * 10, payslipPage * 10).map((ps) => (
                   <tr key={ps.id} className="hover:bg-slate-50">
                     <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{ps.payslip_number}</td>
                     <td className="py-2.5 px-3 text-slate-600">{formatDate(ps.period_start)} &rarr; {formatDate(ps.period_end)}</td>
@@ -615,6 +633,13 @@ export function Employee360() {
               </tbody>
             </table>
           </div>
+          <PaginationControls
+            currentPage={payslipPage}
+            pageSize={10}
+            totalItems={payslips.length}
+            onPageChange={setPayslipPage}
+            itemLabel="payslips"
+          />
         </Card>
       )}
 

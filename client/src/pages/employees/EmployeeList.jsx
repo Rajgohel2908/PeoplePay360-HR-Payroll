@@ -44,7 +44,7 @@ export function EmployeeList() {
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [jobPositions, setJobPositions] = useState([]);

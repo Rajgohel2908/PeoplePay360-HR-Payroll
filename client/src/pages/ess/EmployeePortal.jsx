@@ -162,10 +162,10 @@ export function EmployeePortal() {
   const formatCurrency = (val) => `₹${parseFloat(val || 0).toLocaleString('en-IN')}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pt-2 sm:pt-4">
       {/* Welcome Banner (Light Sky-Blue with Crystal-Clear High-Contrast Text) */}
-      <div className="p-6 bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/40 border border-sky-200/90 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="p-6 sm:p-8 bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/40 border border-sky-200/90 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex items-center gap-5">
           <img
             src={employee.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${employee.first_name}`}
             alt={employee.first_name}

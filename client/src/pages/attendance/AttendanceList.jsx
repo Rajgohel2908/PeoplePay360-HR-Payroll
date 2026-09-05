@@ -33,7 +33,7 @@ export function AttendanceList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [pagination, setPagination] = useState({ page: 1, limit: 30, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [employees, setEmployees] = useState([]);
