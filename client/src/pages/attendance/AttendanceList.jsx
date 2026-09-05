@@ -207,23 +207,21 @@ export function AttendanceList() {
         </Badge>
       )
     },
-    {
+    ...(hasRole(['admin', 'hr_manager', 'payroll_manager']) ? [{
       header: 'Actions',
       align: 'right',
       cell: (row) => (
         <div className="flex items-center justify-end gap-1.5">
-          {hasRole(['admin', 'hr_manager', 'payroll_manager']) && (
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={() => openCorrection(row)}
-            >
-              Correct
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => openCorrection(row)}
+          >
+            Correct
+          </Button>
         </div>
       )
-    }
+    }] : [])
   ];
 
   return (
