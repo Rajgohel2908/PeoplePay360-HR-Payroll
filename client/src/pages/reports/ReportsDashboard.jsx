@@ -12,6 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -139,7 +140,7 @@ export function ReportsDashboard() {
                 {reportData.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-mono font-bold text-slate-900">{row.payrun_number}</td>
-                    <td className="py-3 px-4 text-slate-600">{row.period_start} &rarr; {row.period_end}</td>
+                    <td className="py-3 px-4 text-slate-600">{formatDate(row.period_start)} &rarr; {formatDate(row.period_end)}</td>
                     <td className="py-3 px-4 font-bold">{row.total_employees}</td>
                     <td className="py-3 px-4 font-semibold">{formatCurrency(row.total_gross)}</td>
                     <td className="py-3 px-4 font-semibold text-red-600">{formatCurrency(row.total_deductions)}</td>
@@ -259,8 +260,8 @@ export function ReportsDashboard() {
                     <td className="py-3 px-4 font-mono font-bold text-slate-900">{row.contract_id}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{row.employee_name} ({row.emp_code})</td>
                     <td className="py-3 px-4 text-slate-600">{row.department_name} • {row.position_title}</td>
-                    <td className="py-3 px-4">{row.start_date}</td>
-                    <td className="py-3 px-4 font-bold text-red-600">{row.end_date}</td>
+                    <td className="py-3 px-4">{formatDate(row.start_date)}</td>
+                    <td className="py-3 px-4 font-bold text-red-600">{formatDate(row.end_date)}</td>
                     <td className="py-3 px-4 font-semibold text-emerald-700">{formatCurrency(row.wage)}</td>
                     <td className="py-3 px-4">
                       <Badge variant={row.status === 'active' ? 'success' : 'danger'} size="sm" dot>

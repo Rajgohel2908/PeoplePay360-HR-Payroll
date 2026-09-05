@@ -4,3 +4,4 @@ package-lock.json
 *.sqlite-shm
 .env
 .DS_Store
+BACKEND_REQUIREMENTS.md

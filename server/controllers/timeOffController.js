@@ -178,19 +178,24 @@ async function submitRequest(req, res, next) {
 
     const requestId = newId?.id || newId;
 
-    // Notify HR Managers
-    await createNotification({
-      role: ROLES.HR_MANAGER,
-      type: 'LEAVE_REQUEST_SUBMITTED',
-      title: 'New Leave Request',
-      message: `A new ${leaveType.name} request (${duration_days} days) has been submitted for review.`,
-      link: '/time-off'
-    });
+    // Notify HR Managers (fire-and-forget async, does not block response)
+    try {
+      createNotification({
+        role: ROLES.HR_MANAGER,
+        type: 'LEAVE_REQUEST_SUBMITTED',
+        title: 'New Leave Request',
+        message: `A new ${leaveType.name} request (${duration_days} days) has been submitted for review.`,
+        link: '/time-off'
+      }).catch((e) => console.error('Notification error:', e.message));
+    } catch (e) {
+      console.error('Notification error:', e.message);
+    }
 
+    const created = await db('time_off_requests').where('id', requestId).first();
     res.status(201).json({
       success: true,
       message: 'Time off request submitted successfully for manager approval.',
-      data: await db('time_off_requests').where('id', requestId).first()
+      data: created
     });
   } catch (err) {
     next(err);
@@ -261,9 +266,22 @@ async function approveRequest(req, res, next) {
             });
         }
       }
+    });
 
-      // 3. Audit Log
-      await logAudit({
+    // Post-transaction notifications and audit logs (runs without holding table lock)
+    try {
+      const empUser = await db('users').where('employee_id', request.employee_id).first();
+      if (empUser) {
+        createNotification({
+          userId: empUser.id,
+          type: 'LEAVE_REQUEST_APPROVED',
+          title: 'Leave Request Approved',
+          message: `Your request for ${request.leave_name} (${request.duration_days} days) has been APPROVED.`,
+          link: '/time-off'
+        }).catch((e) => console.error('Notification write error:', e.message));
+      }
+
+      logAudit({
         userId: req.user.id,
         userName: req.user.username,
         userRole: req.user.role,
@@ -273,25 +291,16 @@ async function approveRequest(req, res, next) {
         newValues: JSON.stringify({ status: 'approved', approver_id: req.user.id }),
         reason: approver_comment || 'Leave approved',
         ipAddress: req.ip
-      });
+      }).catch((e) => console.error('Audit log write error:', e.message));
+    } catch (postTrxErr) {
+      console.error('Post-approval hook non-fatal error:', postTrxErr.message);
+    }
 
-      // 4. Notify Employee
-      const empUser = await trx('users').where('employee_id', request.employee_id).first();
-      if (empUser) {
-        await createNotification({
-          userId: empUser.id,
-          type: 'LEAVE_REQUEST_APPROVED',
-          title: 'Leave Request Approved',
-          message: `Your request for ${request.leave_name} (${request.duration_days} days) has been APPROVED.`,
-          link: '/time-off'
-        });
-      }
-    });
-
+    const updated = await db('time_off_requests').where('id', id).first();
     res.json({
       success: true,
       message: 'Time off request approved successfully and allocation balances updated.',
-      data: await db('time_off_requests').where('id', id).first()
+      data: updated
     });
   } catch (err) {
     next(err);
@@ -352,23 +361,41 @@ async function refuseRequest(req, res, next) {
             .update({ pending_days: pending, updated_at: new Date() });
         }
       }
+    });
 
-      const empUser = await trx('users').where('employee_id', request.employee_id).first();
+    // Post-transaction notifications and audit logs
+    try {
+      const empUser = await db('users').where('employee_id', request.employee_id).first();
       if (empUser) {
-        await createNotification({
+        createNotification({
           userId: empUser.id,
           type: 'LEAVE_REQUEST_REFUSED',
           title: 'Leave Request Declined',
           message: `Your request for ${request.leave_name} was refused. Reason: ${approver_comment}`,
           link: '/time-off'
-        });
+        }).catch((e) => console.error('Notification write error:', e.message));
       }
-    });
 
+      logAudit({
+        userId: req.user.id,
+        userName: req.user.username,
+        userRole: req.user.role,
+        action: 'REFUSE_LEAVE_REQUEST',
+        entity: 'TimeOffRequest',
+        entityId: id,
+        newValues: JSON.stringify({ status: 'refused', approver_id: req.user.id }),
+        reason: approver_comment,
+        ipAddress: req.ip
+      }).catch((e) => console.error('Audit log write error:', e.message));
+    } catch (postTrxErr) {
+      console.error('Post-refusal hook non-fatal error:', postTrxErr.message);
+    }
+
+    const updated = await db('time_off_requests').where('id', id).first();
     res.json({
       success: true,
       message: 'Time off request refused.',
-      data: await db('time_off_requests').where('id', id).first()
+      data: updated
     });
   } catch (err) {
     next(err);

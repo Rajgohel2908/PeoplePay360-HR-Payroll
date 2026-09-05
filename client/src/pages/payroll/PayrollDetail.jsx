@@ -16,6 +16,7 @@ import {
   FileCheck
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { Card, StatCard } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -297,7 +298,7 @@ export function PayrollDetail() {
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Period: <b>{payrun.period_start}</b> to <b>{payrun.period_end}</b> &bull; Payment Target: <b>{payrun.payment_date || 'Pending'}</b> &bull; Scope: <b>{payrun.total_employees} Employees</b>
+              Period: <b>{formatDate(payrun.period_start)}</b> to <b>{formatDate(payrun.period_end)}</b> &bull; Payment Target: <b>{payrun.payment_date ? formatDate(payrun.payment_date) : 'Pending'}</b> &bull; Scope: <b>{payrun.total_employees} Employees</b>
             </p>
           </div>
 

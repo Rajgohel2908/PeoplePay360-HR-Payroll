@@ -264,7 +264,7 @@ export function Header({ onMobileMenuToggle }) {
                   }}
                   className="w-full text-left px-3.5 py-2.5 rounded-xl text-[13px] font-semibold text-slate-800 hover:bg-stone-50 transition-colors"
                 >
-                  My Profile (360)
+                  My Profile
                 </button>
                 <button
                   onClick={logout}

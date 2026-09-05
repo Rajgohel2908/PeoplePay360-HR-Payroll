@@ -25,6 +25,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { DataTable } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -516,7 +517,7 @@ export function EmployeeList() {
     {
       header: 'Joining Date',
       accessor: 'joining_date',
-      cell: (row) => <span className="font-medium text-slate-600">{row.joining_date}</span>
+      cell: (row) => <span className="font-medium text-slate-600">{formatDate(row.joining_date)}</span>
     },
     {
       header: 'Actions',
@@ -528,9 +529,9 @@ export function EmployeeList() {
             size="xs"
             onClick={() => navigate(`/employees/360/${row.id}`)}
             className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-            title="Open Employee 360 View"
+            title="View Employee Details"
           >
-            <Eye className="w-3.5 h-3.5 mr-1" /> 360 View
+            <Eye className="w-3.5 h-3.5 mr-1" /> View
           </Button>
         </div>
       )
@@ -818,9 +819,9 @@ export function EmployeeList() {
                             </div>
 
                             <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
-                              <span>Joined: {emp.joining_date || '—'}</span>
+                              <span>Joined: {formatDate(emp.joining_date)}</span>
                               <span className="font-semibold text-emerald-600 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                                360 View <ArrowRight className="w-3 h-3" />
+                                View <ArrowRight className="w-3 h-3" />
                               </span>
                             </div>
                           </div>

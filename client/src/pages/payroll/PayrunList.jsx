@@ -14,6 +14,7 @@ import {
   FileCheck
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { DataTable } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -98,9 +99,9 @@ export function PayrunList() {
       accessor: 'period_start',
       cell: (row) => (
         <div className="text-xs">
-          <span className="font-semibold text-slate-900">{row.period_start}</span>
+          <span className="font-semibold text-slate-900">{formatDate(row.period_start)}</span>
           <span className="text-slate-400 mx-1.5">&rarr;</span>
-          <span className="font-semibold text-slate-900">{row.period_end}</span>
+          <span className="font-semibold text-slate-900">{formatDate(row.period_end)}</span>
           <p className="text-[10px] text-slate-500 font-mono mt-0.5">{row.total_employees} Employees Included</p>
         </div>
       )

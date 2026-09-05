@@ -26,6 +26,7 @@ import {
   Lock
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { Card, StatCard } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -157,8 +158,7 @@ export function Employee360() {
     { id: 'contracts', label: 'Contracts', icon: FileSignature, badge: contracts?.length },
     { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
     { id: 'timeoff', label: 'Time Off / Leave', icon: Palmtree, badge: timeOff?.requests?.length },
-    { id: 'payroll', label: 'Payroll & Payslips', icon: ReceiptIndianRupee, badge: payslips?.length },
-    { id: 'audit', label: 'Audit Trail', icon: ShieldCheck, badge: auditLogs?.length }
+    { id: 'payroll', label: 'Payroll & Payslips', icon: ReceiptIndianRupee, badge: payslips?.length }
   ];
 
   const formatCurrency = (val) => `₹${parseFloat(val || 0).toLocaleString('en-IN')}`;
@@ -287,7 +287,7 @@ export function Employee360() {
             <StatCard
               title="Active Contract"
               value={activeContract ? formatCurrency(activeContract.wage) : 'None'}
-              subtitle={activeContract ? `Valid to ${activeContract.end_date || 'Open-ended'}` : 'Expired or Missing'}
+              subtitle={activeContract ? `Valid to ${activeContract.end_date ? formatDate(activeContract.end_date) : 'Open-ended'}` : 'Expired or Missing'}
               icon={FileSignature}
               variant="emerald"
             />
@@ -324,7 +324,7 @@ export function Employee360() {
                 </div>
                 <div>
                   <dt className="text-slate-400 font-medium">Joining Date</dt>
-                  <dd className="font-bold text-slate-900 mt-0.5">{employee.joining_date}</dd>
+                  <dd className="font-bold text-slate-900 mt-0.5">{formatDate(employee.joining_date)}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-400 font-medium">Employment Type</dt>
@@ -383,7 +383,7 @@ export function Employee360() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
             <div>
               <p className="text-slate-400 font-semibold uppercase tracking-wider">Date of Birth</p>
-              <p className="font-bold text-slate-900 mt-1">{employee.date_of_birth || 'N/A'}</p>
+              <p className="font-bold text-slate-900 mt-1">{formatDate(employee.date_of_birth)}</p>
             </div>
             <div>
               <p className="text-slate-400 font-semibold uppercase tracking-wider">Gender</p>
@@ -434,7 +434,7 @@ export function Employee360() {
                         {c.status.toUpperCase()}
                       </Badge>
                       <span className="text-xs font-semibold text-slate-500">
-                        {c.start_date} &rarr; {c.end_date || 'Open-ended'}
+                        {formatDate(c.start_date)} &rarr; {c.end_date ? formatDate(c.end_date) : 'Open-ended'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 mt-1">
@@ -479,7 +479,7 @@ export function Employee360() {
                 <tbody className="divide-y divide-slate-100">
                   {attendance.recentLogs?.map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50">
-                      <td className="py-2.5 px-3 font-semibold text-slate-900">{log.date}</td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">{formatDate(log.date)}</td>
                       <td className="py-2.5 px-3 font-mono">{log.check_in || '--:--'}</td>
                       <td className="py-2.5 px-3 font-mono">{log.check_out || '--:--'}</td>
                       <td className="py-2.5 px-3 font-bold">{log.worked_hours}h</td>
@@ -551,7 +551,7 @@ export function Employee360() {
                     <tr key={req.id} className="hover:bg-slate-50">
                       <td className="py-2.5 px-3 font-semibold text-slate-900">{req.leave_type_name}</td>
                       <td className="py-2.5 px-3 font-bold">{req.duration_days} Days</td>
-                      <td className="py-2.5 px-3 text-slate-600">{req.start_date} to {req.end_date}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{formatDate(req.start_date)} &rarr; {formatDate(req.end_date)}</td>
                       <td className="py-2.5 px-3 text-slate-500">{req.reason || 'Personal'}</td>
                       <td className="py-2.5 px-3">
                         <Badge variant={
@@ -591,7 +591,7 @@ export function Employee360() {
                 {payslips.map((ps) => (
                   <tr key={ps.id} className="hover:bg-slate-50">
                     <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{ps.payslip_number}</td>
-                    <td className="py-2.5 px-3 text-slate-600">{ps.period_start} to {ps.period_end}</td>
+                    <td className="py-2.5 px-3 text-slate-600">{formatDate(ps.period_start)} &rarr; {formatDate(ps.period_end)}</td>
                     <td className="py-2.5 px-3 font-semibold">{formatCurrency(ps.gross_salary)}</td>
                     <td className="py-2.5 px-3 text-red-600 font-semibold">{formatCurrency(ps.total_deductions)}</td>
                     <td className="py-2.5 px-3 font-black text-emerald-600">{formatCurrency(ps.net_salary)}</td>
@@ -614,24 +614,6 @@ export function Employee360() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </Card>
-      )}
-
-      {/* Tab 7: AUDIT TRAIL */}
-      {activeTab === 'audit' && (
-        <Card title="Immutable Audit Trail Log">
-          <div className="space-y-3">
-            {auditLogs.map((log) => (
-              <div key={log.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900">{log.action}</span>
-                  <span className="text-[11px] text-slate-500">{log.created_at}</span>
-                </div>
-                <p className="text-slate-600">Actor: <b>{log.user_name}</b> ({log.user_role})</p>
-                {log.reason && <p className="text-[11px] text-slate-500 italic">Reason: "{log.reason}"</p>}
-              </div>
-            ))}
           </div>
         </Card>
       )}

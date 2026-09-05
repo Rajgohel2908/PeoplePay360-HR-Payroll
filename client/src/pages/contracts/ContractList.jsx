@@ -13,6 +13,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { DataTable } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -132,9 +133,9 @@ export function ContractList() {
       accessor: 'start_date',
       cell: (row) => (
         <div className="text-xs">
-          <span className="font-semibold text-slate-800">{row.start_date}</span>
+          <span className="font-semibold text-slate-800">{formatDate(row.start_date)}</span>
           <span className="text-slate-400 mx-1.5">&rarr;</span>
-          <span className="text-slate-600 font-medium">{row.end_date || 'Open-ended'}</span>
+          <span className="text-slate-600 font-medium">{row.end_date ? formatDate(row.end_date) : 'Open-ended'}</span>
         </div>
       )
     },
@@ -175,7 +176,7 @@ export function ContractList() {
           onClick={() => navigate(`/employees/360/${row.employee_id}`)}
           className="text-emerald-600 hover:text-emerald-700"
         >
-          View 360 &rarr;
+          View &rarr;
         </Button>
       )
     }

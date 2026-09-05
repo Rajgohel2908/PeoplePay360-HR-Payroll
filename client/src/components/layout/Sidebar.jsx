@@ -29,7 +29,7 @@ export function Sidebar({ collapsed, onToggle }) {
         { title: 'My Attendance', path: '/attendance', icon: CalendarCheck },
         { title: 'My Time Off', path: '/time-off', icon: Palmtree },
         { title: 'My Payslips', path: '/payslips', icon: ReceiptIndianRupee },
-        { title: 'My Profile (360)', path: `/employees/360/${user?.employee_id || 1}`, icon: Users }
+        { title: 'My Profile', path: `/employees/360/${user?.employee_id || 1}`, icon: Users }
       ]
     : [
         {
@@ -54,7 +54,6 @@ export function Sidebar({ collapsed, onToggle }) {
           section: 'ANALYTICS & ADMIN'
         },
         { title: 'Reports', path: '/reports', icon: FileBarChart2 },
-        { title: 'Audit Trail', path: '/admin/audit', icon: ShieldCheck, roles: ['admin'] },
         { title: 'User Management', path: '/admin/users', icon: Settings, roles: ['admin'] }
       ];
 

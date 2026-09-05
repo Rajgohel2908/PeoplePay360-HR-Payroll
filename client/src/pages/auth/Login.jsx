@@ -48,7 +48,7 @@ export function Login() {
       user: 'admin',
       pass: 'admin123',
       name: 'Aarav Sharma',
-      desc: 'Full system management, user provisioning, global settings & audit trail',
+      desc: 'Full system management, user provisioning, and global settings',
       badge: 'Admin Access',
       badgeColor: 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
     },

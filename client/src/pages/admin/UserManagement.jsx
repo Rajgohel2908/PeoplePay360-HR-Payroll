@@ -11,6 +11,7 @@ import {
   Users
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -160,7 +161,7 @@ export function UserManagement() {
                       {u.is_active ? 'Active' : 'Disabled'}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4 text-slate-500">{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td className="py-3 px-4 text-slate-500">{formatDate(u.created_at)}</td>
                   <td className="py-3 px-4 text-right">
                     <Button
                       variant="outline"

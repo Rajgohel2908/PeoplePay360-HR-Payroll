@@ -24,6 +24,7 @@ import { Select } from '../../components/ui/Select';
 import { QuickAttendanceWidget } from '../../components/attendance/QuickAttendanceWidget';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatDate } from '../../utils/dateUtils';
 
 export function AttendanceList() {
   const [attendance, setAttendance] = useState([]);
@@ -163,7 +164,7 @@ export function AttendanceList() {
     {
       header: 'Date',
       accessor: 'date',
-      cell: (row) => <span className="font-semibold text-slate-900">{row.date}</span>
+      cell: (row) => <span className="font-semibold text-slate-900">{formatDate(row.date)}</span>
     },
     {
       header: 'Check In / Out',
@@ -225,9 +226,9 @@ export function AttendanceList() {
         <Badge
           variant={
             row.status === 'present' ? 'success' :
-            row.status === 'late' ? 'warning' :
-            row.status === 'missing_checkout' ? 'danger' :
-            row.status === 'overtime' ? 'purple' : 'neutral'
+              row.status === 'late' ? 'warning' :
+                row.status === 'missing_checkout' ? 'danger' :
+                  row.status === 'overtime' ? 'purple' : 'neutral'
           }
           dot
           size="sm"

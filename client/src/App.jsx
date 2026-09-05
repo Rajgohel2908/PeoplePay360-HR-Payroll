@@ -25,7 +25,6 @@ import PayslipDetail from './pages/payslips/PayslipDetail';
 import EmployeePortal from './pages/ess/EmployeePortal';
 import ReportsDashboard from './pages/reports/ReportsDashboard';
 import UserManagement from './pages/admin/UserManagement';
-import AuditLogViewer from './pages/admin/AuditLogViewer';
 import SystemSettings from './pages/admin/SystemSettings';
 
 /**
@@ -252,20 +251,12 @@ export function App() {
           }
         />
 
-        {/* Admin Settings & Audit Trail */}
+        {/* Admin Settings */}
         <Route
           path="/admin/users"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <UserManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/audit"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AuditLogViewer />
             </ProtectedRoute>
           }
         />

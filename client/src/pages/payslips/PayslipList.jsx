@@ -11,6 +11,7 @@ import {
   Calendar
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { DataTable } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -111,7 +112,7 @@ export function PayslipList() {
       header: 'Period',
       accessor: 'period_start',
       cell: (row) => (
-        <span className="text-xs text-slate-700 font-medium">{row.period_start} &rarr; {row.period_end}</span>
+        <span className="text-xs text-slate-700 font-medium">{formatDate(row.period_start)} &rarr; {formatDate(row.period_end)}</span>
       )
     },
     {

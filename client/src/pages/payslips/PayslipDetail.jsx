@@ -14,6 +14,7 @@ import {
   Mail
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
@@ -145,7 +146,7 @@ export function PayslipDetail() {
             </div>
             <div>
               <p className="text-slate-400 font-medium">Payroll Period</p>
-              <p className="font-bold text-slate-900 mt-0.5">{payslip.period_start} &rarr; {payslip.period_end}</p>
+              <p className="font-bold text-slate-900 mt-0.5">{formatDate(payslip.period_start)} &rarr; {formatDate(payslip.period_end)}</p>
             </div>
             <div>
               <p className="text-slate-400 font-medium">Bank Account</p>

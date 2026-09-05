@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import api from '../../api/client';
+import { formatDate } from '../../utils/dateUtils';
 import { Card, StatCard } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -54,8 +55,8 @@ export function EmployeePortal() {
     reason: 'Personal time off'
   });
 
-  const loadESSData = async () => {
-    setLoading(true);
+  const loadESSData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const empId = user?.employee_id || 1;
       const [res360, typesRes] = await Promise.all([
@@ -68,7 +69,7 @@ export function EmployeePortal() {
     } catch (err) {
       showError(err.message || 'Failed to load ESS portal.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -81,7 +82,7 @@ export function EmployeePortal() {
       const res = await api.post('/attendance/check-in', {});
       if (res.success) {
         showSuccess(res.message);
-        loadESSData();
+        loadESSData(true);
       }
     } catch (err) {
       showError(err.message || 'Check-in failed.');
@@ -93,7 +94,7 @@ export function EmployeePortal() {
       const res = await api.post('/attendance/check-out', {});
       if (res.success) {
         showSuccess(res.message);
-        loadESSData();
+        loadESSData(true);
       }
     } catch (err) {
       showError(err.message || 'Check-out failed.');
@@ -131,18 +132,20 @@ export function EmployeePortal() {
       return;
     }
 
+    setShowLeaveModal(false);
+    showSuccess('Leave request submitted to your reporting manager.');
+
     try {
       const res = await api.post('/time-off/requests', {
         ...leaveForm,
         employee_id: user.employee_id
       });
       if (res.success) {
-        showSuccess('Leave request submitted to your reporting manager.');
-        setShowLeaveModal(false);
-        loadESSData();
+        await loadESSData(true);
       }
     } catch (err) {
       showError(err.message || 'Failed to submit leave.');
+      loadESSData(true);
     }
   };
 
@@ -289,7 +292,7 @@ export function EmployeePortal() {
               <div key={ps.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs">
                 <div>
                   <p className="font-bold font-mono text-slate-900">{ps.payslip_number}</p>
-                  <p className="text-[11px] text-slate-500">{ps.period_start} &rarr; {ps.period_end}</p>
+                  <p className="text-[11px] text-slate-500">{formatDate(ps.period_start)} &rarr; {formatDate(ps.period_end)}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-black text-emerald-700 text-sm">{formatCurrency(ps.net_salary)}</span>
@@ -332,7 +335,7 @@ export function EmployeePortal() {
                 <div key={log.id} className="p-2.5 bg-slate-50 rounded-lg flex items-center justify-between text-xs">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900">{log.date}</span>
+                      <span className="font-bold text-slate-900">{formatDate(log.date)}</span>
                       {sessions.length > 1 && (
                         <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                           {sessions.length} sessions
