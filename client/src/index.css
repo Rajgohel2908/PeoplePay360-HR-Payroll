@@ -4,13 +4,48 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans;
+    background-color: #FAF8F5;
+    @apply text-slate-900 font-sans;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'tnum';
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-bold text-slate-900;
   }
 }
 
-/* Custom modern scrollbars */
+/* Warm cream background utilities */
+.bg-cream-canvas {
+  background-color: #FAF8F5;
+}
+
+.bg-cream-surface {
+  background-color: #F5F1E8;
+}
+
+/* Professional minimalist shadows */
+.shadow-xs {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+.shadow-card {
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+}
+
+.shadow-dropdown {
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+/* Subtle warm dot pattern for light canvas */
+.bg-warm-pattern {
+  background-color: #FAF8F5;
+  background-image: radial-gradient(#E8E2D5 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Custom modern light scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -21,12 +56,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #DDD5C7;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #C8BEAC;
 }
 
 /* Print utility for payslips */

@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+*.sqlite-wal
+*.sqlite-shm
+.env
+.DS_Store

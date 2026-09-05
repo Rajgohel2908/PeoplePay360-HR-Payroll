@@ -137,29 +137,29 @@ export function EmployeePortal() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      {/* Welcome Banner (Light Sky-Blue with Crystal-Clear High-Contrast Text) */}
+      <div className="p-6 bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/40 border border-sky-200/90 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <img
             src={employee.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${employee.first_name}`}
             alt={employee.first_name}
-            className="w-16 h-16 rounded-2xl bg-slate-700 object-cover border-2 border-slate-600"
+            className="w-16 h-16 rounded-2xl bg-white object-cover border-2 border-sky-200 shadow-xs"
           />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 Welcome back, {employee.first_name}!
               </h1>
               <Badge variant="success" size="sm" dot>Active</Badge>
             </div>
-            <p className="text-xs text-slate-300 font-medium mt-0.5">
-              {employee.position_title} &bull; <span className="text-emerald-400 font-semibold">{employee.department_name}</span> &bull; {employee.employee_id}
+            <p className="text-xs text-slate-600 font-medium mt-0.5">
+              {employee.position_title} &bull; <span className="text-emerald-700 font-bold">{employee.department_name}</span> &bull; <span className="font-mono text-slate-600">{employee.employee_id}</span>
             </p>
           </div>
         </div>
 
         {/* Interactive Check-In / Out Widget */}
-        <div className="flex items-center gap-2 bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+        <div className="flex items-center gap-2 bg-white/90 p-2 rounded-xl border border-sky-200/80 shadow-xs">
           <Button variant="primary" size="sm" icon={LogIn} onClick={handleCheckIn}>
             Check In
           </Button>

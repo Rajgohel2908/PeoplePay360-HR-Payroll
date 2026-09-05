@@ -15,7 +15,8 @@ import {
   Calendar,
   Building,
   CheckCircle2,
-  FileSignature
+  FileSignature,
+  Bell
 } from 'lucide-react';
 import {
   AreaChart,
@@ -37,8 +38,41 @@ import { StatCard, Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { DashboardSkeleton } from '../../components/ui/SkeletonLoader';
+import { useInView } from '../../hooks/useInView';
+import { useAuth } from '../../contexts/AuthContext';
+
+/**
+ * AnimatedChartCard wraps dashboard charts in a scroll-triggered viewport observer.
+ * Transitions smoothly into view and mounts the Recharts animation right as it scrolls into screen.
+ */
+function AnimatedChartCard({ title, subtitle, action, className = '', delay = 0, children }) {
+  const [ref, inView] = useInView({ threshold: 0.08, rootMargin: '0px 0px -20px 0px', triggerOnce: true });
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-700 ease-out transform ${
+        inView
+          ? 'opacity-100 translate-y-0 scale-100'
+          : 'opacity-0 translate-y-6 scale-[0.99]'
+      } ${className}`}
+    >
+      <Card title={title} subtitle={subtitle} action={action}>
+        {inView ? (
+          children
+        ) : (
+          <div className="h-72 w-full flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full border-2 border-stone-200 border-t-emerald-500 animate-spin opacity-20" />
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
 
 export function Dashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [periodFilter, setPeriodFilter] = useState('2026');
@@ -73,22 +107,32 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header & Period Filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Executive HR & Payroll Dashboard
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Real-time financial disbursements, contract statuses, and pre-flight payroll health
-          </p>
+      {/* Executive Welcome Banner (Light Sky-Blue with Crystal-Clear High-Contrast Text) */}
+      <div className="p-5 sm:p-6 bg-gradient-to-r from-sky-50/90 via-blue-50/70 to-indigo-50/40 border border-sky-200/90 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-800 border border-sky-200/80 shadow-xs flex items-center justify-center font-black text-xl shrink-0">
+            {user?.first_name ? user.first_name[0] : (user?.username ? user.username[0].toUpperCase() : 'P')}
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Executive HR & Payroll Dashboard
+              </h1>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 uppercase tracking-wider">
+                {user?.role?.replace('_', ' ')}
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 font-medium mt-0.5">
+              Welcome back, <span className="font-bold text-slate-900">{user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username}</span> &bull; Real-time financial disbursements, contract statuses, and pre-flight payroll health
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0 w-full md:w-auto justify-end">
           <select
             value={periodFilter}
             onChange={(e) => setPeriodFilter(e.target.value)}
-            className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-xs"
           >
             <option value="2026">Payroll Year 2026</option>
             <option value="2025">Payroll Year 2025</option>
@@ -105,48 +149,30 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Critical Operational Alert Banners if Blockers Exist */}
+      {/* Discreet Operational Alerts Routing Notice */}
       {alerts && alerts.length > 0 && (
-        <div className="space-y-2.5">
-          {alerts.map((alert) => (
-            <div
-              key={alert.id}
-              className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-subtle ${
-                alert.severity === 'blocker'
-                  ? 'bg-red-50/80 border-red-200 text-red-900'
-                  : 'bg-amber-50/80 border-amber-200 text-amber-900'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${alert.severity === 'blocker' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
-                  {alert.severity === 'blocker' ? <AlertCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider">{alert.title}</h4>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${alert.severity === 'blocker' ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'}`}>
-                      {alert.severity.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-xs mt-0.5 opacity-90">{alert.description}</p>
-                  {alert.items && alert.items.length > 0 && (
-                    <p className="text-[11px] font-semibold mt-1 opacity-80">
-                      Affected: {alert.items.join(' • ')}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <Button
-                variant={alert.severity === 'blocker' ? 'danger' : 'warning'}
-                size="xs"
-                onClick={() => navigate(alert.actionLink)}
-                className="shrink-0 font-bold"
-              >
-                Resolve in {alert.type}
-              </Button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 bg-white rounded-2xl border border-stone-200/90 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+              <Bell className="w-4 h-4" />
             </div>
-          ))}
+            <div>
+              <p className="text-[13px] font-bold text-slate-900">
+                {alerts.length} Operational Exception(s) Routed to Notification Center
+              </p>
+              <p className="text-xs text-slate-500">
+                Missing bank information, expired contracts, and checkout exceptions are actively monitored in your Notifications.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => navigate('/payroll')}
+            className="text-xs font-semibold shrink-0"
+          >
+            Open Validation Center
+          </Button>
         </div>
       )}
 
@@ -230,10 +256,11 @@ export function Dashboard() {
       {/* Main Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Monthly Payroll Cost Trend */}
-        <Card
+        <AnimatedChartCard
           title="Monthly Payroll Trend (Gross vs Net)"
           subtitle="Real-time aggregation from executed payruns"
           className="lg:col-span-2"
+          delay={0}
           action={
             <Button variant="ghost" size="xs" onClick={() => navigate('/payroll')}>
               View All Payruns <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -266,15 +293,43 @@ export function Dashboard() {
                   formatter={(val) => [formatCurrency(val), '']}
                   contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: 'none' }}
                 />
-                <Area type="monotone" dataKey="total_gross" name="Gross Salary" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorGross)" />
-                <Area type="monotone" dataKey="total_net" name="Net Disbursed" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorNet)" />
+                <Area
+                  type="monotone"
+                  dataKey="total_gross"
+                  name="Gross Salary"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorGross)"
+                  isAnimationActive={true}
+                  animationDuration={1400}
+                  animationEasing="ease-out"
+                  animationBegin={100}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total_net"
+                  name="Net Disbursed"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorNet)"
+                  isAnimationActive={true}
+                  animationDuration={1400}
+                  animationEasing="ease-out"
+                  animationBegin={250}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </AnimatedChartCard>
 
         {/* Attendance Distribution Donut */}
-        <Card title="Attendance Distribution" subtitle="August shift logs breakdown">
+        <AnimatedChartCard
+          title="Attendance Distribution"
+          subtitle="August shift logs breakdown"
+          delay={120}
+        >
           <div className="h-72 w-full flex flex-col items-center justify-center">
             <ResponsiveContainer width="100%" height="80%">
               <PieChart>
@@ -286,6 +341,10 @@ export function Dashboard() {
                   outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
+                  isAnimationActive={true}
+                  animationDuration={1300}
+                  animationEasing="ease-out"
+                  animationBegin={150}
                 >
                   {charts.attendanceDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -305,13 +364,17 @@ export function Dashboard() {
               ))}
             </div>
           </div>
-        </Card>
+        </AnimatedChartCard>
       </div>
 
       {/* Department Breakdown Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Department Salary Cost */}
-        <Card title="Monthly Salary Cost by Department" subtitle="Active employment contract distribution">
+        <AnimatedChartCard
+          title="Monthly Salary Cost by Department"
+          subtitle="Active employment contract distribution"
+          delay={0}
+        >
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.departmentCost} layout="vertical" margin={{ top: 10, right: 20, left: 40, bottom: 0 }}>
@@ -322,14 +385,27 @@ export function Dashboard() {
                   formatter={(val) => [formatCurrency(val), 'Monthly Cost']}
                   contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: 'none' }}
                 />
-                <Bar dataKey="total_salary_cost" fill="#059669" radius={[0, 6, 6, 0]} barSize={16} />
+                <Bar
+                  dataKey="total_salary_cost"
+                  fill="#059669"
+                  radius={[0, 6, 6, 0]}
+                  barSize={16}
+                  isAnimationActive={true}
+                  animationDuration={1300}
+                  animationEasing="ease-out"
+                  animationBegin={150}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </AnimatedChartCard>
 
         {/* Leave Usage by Type */}
-        <Card title="Leave Usage Breakdown" subtitle="Approved time off days by leave category">
+        <AnimatedChartCard
+          title="Leave Usage Breakdown"
+          subtitle="Approved time off days by leave category"
+          delay={120}
+        >
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.leaveUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -340,11 +416,20 @@ export function Dashboard() {
                   formatter={(val) => [`${val} Days`, 'Total Taken']}
                   contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px', border: 'none' }}
                 />
-                <Bar dataKey="total_days_taken" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={28} />
+                <Bar
+                  dataKey="total_days_taken"
+                  fill="#8b5cf6"
+                  radius={[6, 6, 0, 0]}
+                  barSize={28}
+                  isAnimationActive={true}
+                  animationDuration={1300}
+                  animationEasing="ease-out"
+                  animationBegin={150}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </AnimatedChartCard>
       </div>
     </div>
   );

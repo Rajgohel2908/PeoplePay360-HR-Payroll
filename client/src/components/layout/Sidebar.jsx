@@ -18,6 +18,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../ui/Logo';
 
 export function Sidebar({ collapsed, onToggle }) {
   const { user, isEmployeeOnly } = useAuth();
@@ -60,28 +61,19 @@ export function Sidebar({ collapsed, onToggle }) {
   return (
     <aside
       className={`
-        bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-all duration-300 shrink-0 z-30
-        ${collapsed ? 'w-20' : 'w-64'}
+        bg-white text-slate-800 flex flex-col border-r border-stone-200/90 transition-all duration-300 shrink-0 z-30 shadow-xs
+        ${collapsed ? 'w-20' : 'w-[264px]'}
       `}
     >
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800 bg-slate-950/40">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white font-black text-sm shadow-md shrink-0">
-            360
-          </div>
-          {!collapsed && (
-            <div className="truncate">
-              <span className="text-sm font-black tracking-wider text-white">PEOPLEPAY</span>
-              <span className="text-xs font-bold text-emerald-400 ml-1">360</span>
-              <p className="text-[10px] text-slate-400 font-medium tracking-tight">HR & Payroll Platform</p>
-            </div>
-          )}
+      <div className="h-16 flex items-center justify-between px-5 border-b border-stone-100 bg-white">
+        <div className="flex items-center overflow-hidden">
+          <Logo size={collapsed ? 'sm' : 'md'} showText={!collapsed} />
         </div>
 
         <button
           onClick={onToggle}
-          className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-stone-100 transition-colors"
           title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -92,11 +84,11 @@ export function Sidebar({ collapsed, onToggle }) {
       <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         {navItems.map((item, idx) => {
           if (item.section) {
-            if (collapsed) return <div key={idx} className="my-3 border-t border-slate-800" />;
+            if (collapsed) return <div key={idx} className="my-3 border-t border-stone-100" />;
             return (
               <p
                 key={idx}
-                className="px-3 pt-4 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider"
+                className="px-3.5 pt-5 pb-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider"
               >
                 {item.section}
               </p>
@@ -114,35 +106,43 @@ export function Sidebar({ collapsed, onToggle }) {
               key={item.path}
               to={item.path}
               className={({ isActive }) => `
-                flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group
+                flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] transition-all duration-150 group select-none
                 ${isActive
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-900/30'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80 shadow-xs'
+                  : 'text-slate-800 hover:bg-stone-100/70 hover:text-slate-950 font-semibold'
                 }
               `}
               title={collapsed ? item.title : undefined}
             >
-              <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110`} />
-              {!collapsed && <span className="truncate">{item.title}</span>}
+              <Icon
+                className={`w-[18px] h-[18px] shrink-0 transition-transform group-hover:scale-105 ${
+                  item.path === window.location.pathname ? 'text-emerald-700' : 'text-slate-600 group-hover:text-slate-900'
+                }`}
+              />
+              {!collapsed && (
+                <span className="truncate leading-5 tracking-tight flex-1">
+                  {item.title}
+                </span>
+              )}
             </NavLink>
           );
         })}
       </div>
 
       {/* Current User Pill */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/30">
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-800/60 border border-slate-700/50">
+      <div className="p-3 border-t border-stone-100 bg-stone-50/50">
+        <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-stone-200/90 shadow-xs">
           <img
             src={user?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'User'}`}
             alt="Avatar"
-            className="w-8 h-8 rounded-full bg-slate-700 object-cover shrink-0"
+            className="w-8 h-8 rounded-full bg-stone-100 border border-stone-200 object-cover shrink-0"
           />
           {!collapsed && (
-            <div className="truncate flex-1">
-              <p className="text-xs font-bold text-white truncate">
+            <div className="truncate flex-1 min-w-0">
+              <p className="text-xs font-bold text-slate-900 truncate">
                 {user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username}
               </p>
-              <p className="text-[10px] font-medium text-emerald-400 uppercase tracking-wide truncate">
+              <p className="text-[10.5px] font-semibold text-emerald-700 uppercase tracking-wide truncate mt-0.5">
                 {user?.role?.replace('_', ' ')}
               </p>
             </div>

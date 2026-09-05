@@ -1,5 +1,5 @@
 // client/src/pages/timeoff/TimeOffDashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Palmtree,
@@ -11,7 +11,12 @@ import {
   Calendar,
   User,
   Check,
-  X
+  X,
+  Users,
+  Filter,
+  FileSpreadsheet,
+  Layers,
+  RotateCcw
 } from 'lucide-react';
 import api from '../../api/client';
 import { DataTable } from '../../components/ui/DataTable';
@@ -34,6 +39,11 @@ export function TimeOffDashboard() {
   const [actionType, setActionType] = useState('approve'); // 'approve' | 'refuse'
   const [approverComment, setApproverComment] = useState('');
   const [employees, setEmployees] = useState([]);
+
+  // Filtering & Tab View States
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests' | 'ledger'
 
   const { showSuccess, showError } = useNotifications();
   const { user, hasRole, isEmployeeOnly } = useAuth();
@@ -89,7 +99,7 @@ export function TimeOffDashboard() {
       if (e >= s) {
         const diffTime = Math.abs(e - s);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-        setFormData(prev => ({ ...prev, duration_days: diffDays }));
+        setFormData((prev) => ({ ...prev, duration_days: diffDays }));
       }
     }
   }, [formData.start_date, formData.end_date]);
@@ -116,9 +126,10 @@ export function TimeOffDashboard() {
   const handleDecision = async (e) => {
     e.preventDefault();
     try {
-      const endpoint = actionType === 'approve'
-        ? `/time-off/requests/${selectedRequest.id}/approve`
-        : `/time-off/requests/${selectedRequest.id}/refuse`;
+      const endpoint =
+        actionType === 'approve'
+          ? `/time-off/requests/${selectedRequest.id}/approve`
+          : `/time-off/requests/${selectedRequest.id}/refuse`;
 
       const res = await api.post(endpoint, { approver_comment: approverComment });
       if (res.success) {
@@ -131,7 +142,131 @@ export function TimeOffDashboard() {
     }
   };
 
-  const columns = [
+  // High-level request counts
+  const pendingCount = useMemo(() => requests.filter((r) => r.status === 'submitted').length, [requests]);
+  const approvedCount = useMemo(() => requests.filter((r) => r.status === 'approved').length, [requests]);
+  const refusedCount = useMemo(() => requests.filter((r) => r.status === 'refused').length, [requests]);
+  const totalDaysTaken = useMemo(
+    () => requests.filter((r) => r.status === 'approved').reduce((acc, r) => acc + parseFloat(r.duration_days || 0), 0),
+    [requests]
+  );
+
+  // Selected Employee Info (if filtered)
+  const selectedEmployee = useMemo(() => {
+    if (!selectedEmployeeId) return null;
+    return employees.find((e) => String(e.id) === String(selectedEmployeeId));
+  }, [selectedEmployeeId, employees]);
+
+  /**
+   * Display Allocations (EXACTLY 4 Cards):
+   * 1. For normal employee: their 4 personal cards.
+   * 2. For admin with an employee selected: that employee's 4 cards.
+   * 3. For admin with company-wide overview (default): exactly 4 cards aggregated by leave type across the company.
+   * NEVER renders 156 repetitive cards!
+   */
+  const displayAllocations = useMemo(() => {
+    if (isEmployeeOnly) {
+      return allocations;
+    }
+
+    if (selectedEmployeeId) {
+      return allocations.filter((a) => String(a.employee_id) === String(selectedEmployeeId));
+    }
+
+    // Company-wide aggregation grouped by leave type
+    const typeMap = {};
+    allocations.forEach((a) => {
+      const key = a.leave_type_id || a.leave_type_code;
+      if (!typeMap[key]) {
+        typeMap[key] = {
+          id: `agg-${key}`,
+          leave_type_name: a.leave_type_name,
+          leave_type_code: a.leave_type_code,
+          leave_color: a.leave_color || '#10b981',
+          allocated_days: 0,
+          used_days: 0,
+          pending_days: 0,
+          remaining_days: 0,
+          is_company_aggregate: true,
+          employee_count: 0
+        };
+      }
+      typeMap[key].allocated_days += parseFloat(a.allocated_days || 0);
+      typeMap[key].used_days += parseFloat(a.used_days || 0);
+      typeMap[key].pending_days += parseFloat(a.pending_days || 0);
+      typeMap[key].remaining_days += parseFloat(a.remaining_days || 0);
+      typeMap[key].employee_count += 1;
+    });
+
+    return Object.values(typeMap);
+  }, [allocations, isEmployeeOnly, selectedEmployeeId]);
+
+  // Filtered Requests based on status & employee
+  const filteredRequests = useMemo(() => {
+    let list = requests;
+    if (statusFilter !== 'all') {
+      list = list.filter((r) => r.status === statusFilter);
+    }
+    if (selectedEmployeeId) {
+      list = list.filter((r) => String(r.employee_id) === String(selectedEmployeeId));
+    }
+    return list;
+  }, [requests, statusFilter, selectedEmployeeId]);
+
+  // Staff Balance Ledger: Summarized per employee in a clean, professional table
+  const staffBalanceLedger = useMemo(() => {
+    const empMap = {};
+    allocations.forEach((a) => {
+      const empId = a.employee_id;
+      if (!empMap[empId]) {
+        empMap[empId] = {
+          id: empId,
+          employee_id: empId,
+          first_name: a.first_name,
+          last_name: a.last_name,
+          emp_code: a.emp_code,
+          avatar_url: a.avatar_url,
+          cl_remaining: 0,
+          cl_allocated: 0,
+          cl_used: 0,
+          sl_remaining: 0,
+          sl_allocated: 0,
+          sl_used: 0,
+          pl_remaining: 0,
+          pl_allocated: 0,
+          pl_used: 0,
+          lop_used: 0,
+          total_used: 0
+        };
+      }
+      const code = (a.leave_type_code || '').toUpperCase();
+      const rem = parseFloat(a.remaining_days || 0);
+      const alloc = parseFloat(a.allocated_days || 0);
+      const used = parseFloat(a.used_days || 0);
+
+      if (code === 'CL') {
+        empMap[empId].cl_remaining = rem;
+        empMap[empId].cl_allocated = alloc;
+        empMap[empId].cl_used = used;
+      } else if (code === 'SL') {
+        empMap[empId].sl_remaining = rem;
+        empMap[empId].sl_allocated = alloc;
+        empMap[empId].sl_used = used;
+      } else if (code === 'PL') {
+        empMap[empId].pl_remaining = rem;
+        empMap[empId].pl_allocated = alloc;
+        empMap[empId].pl_used = used;
+      } else if (code === 'LOP') {
+        empMap[empId].lop_used = used;
+      }
+      empMap[empId].total_used += used;
+    });
+
+    return Object.values(empMap);
+  }, [allocations]);
+
+  // Columns for Requests Table
+  const requestColumns = [
     {
       header: 'Employee',
       accessor: 'first_name',
@@ -159,7 +294,7 @@ export function TimeOffDashboard() {
       accessor: 'leave_type_name',
       cell: (row) => (
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.leave_color || '#10b981' }} />
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.leave_color || '#10b981' }} />
           <span className="font-semibold text-slate-900 text-xs">{row.leave_type_name}</span>
         </div>
       )
@@ -234,6 +369,102 @@ export function TimeOffDashboard() {
     }
   ];
 
+  // Columns for Staff Balance Ledger
+  const ledgerColumns = [
+    {
+      header: 'Employee',
+      accessor: 'first_name',
+      cell: (row) => (
+        <div
+          className="flex items-center gap-2.5 cursor-pointer group"
+          onClick={() => navigate(`/employees/360/${row.employee_id}`)}
+        >
+          <img
+            src={row.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.first_name}`}
+            alt={row.first_name}
+            className="w-7 h-7 rounded-full bg-slate-100 object-cover"
+          />
+          <div>
+            <p className="font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+              {row.first_name} {row.last_name}
+            </p>
+            <p className="text-[10px] text-slate-400 font-mono">{row.emp_code}</p>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: 'Casual Leave (CL)',
+      accessor: 'cl_remaining',
+      cell: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 text-xs">{row.cl_remaining}d</span>
+          <span className="text-[11px] text-slate-400"> / {row.cl_allocated}d</span>
+          <p className="text-[10px] text-slate-500">Used: {row.cl_used}d</p>
+        </div>
+      )
+    },
+    {
+      header: 'Sick Leave (SL)',
+      accessor: 'sl_remaining',
+      cell: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 text-xs">{row.sl_remaining}d</span>
+          <span className="text-[11px] text-slate-400"> / {row.sl_allocated}d</span>
+          <p className="text-[10px] text-slate-500">Used: {row.sl_used}d</p>
+        </div>
+      )
+    },
+    {
+      header: 'Paid Leave (PL)',
+      accessor: 'pl_remaining',
+      cell: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 text-xs">{row.pl_remaining}d</span>
+          <span className="text-[11px] text-slate-400"> / {row.pl_allocated}d</span>
+          <p className="text-[10px] text-slate-500">Used: {row.pl_used}d</p>
+        </div>
+      )
+    },
+    {
+      header: 'Loss of Pay (LOP)',
+      accessor: 'lop_used',
+      cell: (row) => (
+        <div>
+          <span className={`font-bold text-xs ${row.lop_used > 0 ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+            {row.lop_used}d
+          </span>
+          <p className="text-[10px] text-slate-400">Unpaid Days</p>
+        </div>
+      )
+    },
+    {
+      header: 'Total Used',
+      accessor: 'total_used',
+      cell: (row) => (
+        <Badge variant={row.total_used > 5 ? 'warning' : 'neutral'} size="sm">
+          {row.total_used} Days
+        </Badge>
+      )
+    },
+    {
+      header: 'Action',
+      align: 'right',
+      cell: (row) => (
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => {
+            setSelectedEmployeeId(String(row.employee_id));
+            setActiveTab('requests');
+          }}
+        >
+          View Balances
+        </Button>
+      )
+    }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -247,57 +478,258 @@ export function TimeOffDashboard() {
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          icon={Plus}
-          onClick={() => setShowRequestModal(true)}
-        >
-          Request Time Off
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            onClick={() => setShowRequestModal(true)}
+          >
+            Request Time Off
+          </Button>
+        </div>
       </div>
 
-      {/* Allocation Ledger Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {allocations.map((alloc) => (
-          <div key={alloc.id} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800">{alloc.leave_type_name}</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${alloc.leave_color}20`, color: alloc.leave_color }}>
-                {alloc.leave_type_code}
-              </span>
+      {/* Admin Executive Summary Row (Only for Managers & Admins) */}
+      {!isEmployeeOnly && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Leave Categories</p>
+              <p className="text-xl font-bold text-slate-900 mt-1">{types.length} Active Types</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">CL, SL, PL, LOP configured</p>
             </div>
-
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-3xl font-black text-slate-900">{alloc.remaining_days}</span>
-              <span className="text-xs font-semibold text-slate-500">of {alloc.allocated_days} days</span>
-            </div>
-
-            <div className="mt-3 w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{
-                  width: `${(parseFloat(alloc.remaining_days) / parseFloat(alloc.allocated_days || 1)) * 100}%`,
-                  backgroundColor: alloc.leave_color || '#10b981'
-                }}
-              />
-            </div>
-
-            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Used: <b>{alloc.used_days}d</b></span>
-              <span>Pending: <b>{alloc.pending_days}d</b></span>
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+              <Palmtree className="w-5 h-5" />
             </div>
           </div>
-        ))}
+
+          <div
+            onClick={() => setStatusFilter('submitted')}
+            className={`bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer transition-all hover:border-amber-400 ${
+              statusFilter === 'submitted' ? 'ring-2 ring-amber-500 bg-amber-50/20' : ''
+            }`}
+          >
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Approvals</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-xl font-bold text-slate-900">{pendingCount}</p>
+                {pendingCount > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 animate-pulse">
+                    Action Required
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">Click to filter submitted</p>
+            </div>
+            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div
+            onClick={() => setStatusFilter('approved')}
+            className={`bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer transition-all hover:border-emerald-400 ${
+              statusFilter === 'approved' ? 'ring-2 ring-emerald-500 bg-emerald-50/20' : ''
+            }`}
+          >
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Approved Requests</p>
+              <p className="text-xl font-bold text-slate-900 mt-1">{approvedCount} Leaves</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Verified & calculated</p>
+            </div>
+            <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Days Taken</p>
+              <p className="text-xl font-bold text-slate-900 mt-1">{totalDaysTaken} Days</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Company-wide YTD</p>
+            </div>
+            <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Toolbar for Balances */}
+      {!isEmployeeOnly && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-500" />
+            <span className="text-xs font-bold text-slate-700">Display Leave Balances For:</span>
+          </div>
+
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 w-full sm:w-72"
+            >
+              <option value="">🏢 Company-Wide Overview (All Staff Aggregated)</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.first_name} {e.last_name} ({e.employee_id})
+                </option>
+              ))}
+            </select>
+
+            {selectedEmployeeId && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => setSelectedEmployeeId('')}
+                icon={RotateCcw}
+                className="text-xs text-slate-500"
+              >
+                Reset
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Allocation Ledger Cards (EXACTLY 4 Clean Cards: CL, SL, PL, LOP) */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <span>
+              {selectedEmployee
+                ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}'s Leave Balances`
+                : isEmployeeOnly
+                ? 'My Annual Leave Balances'
+                : 'Company-Wide Leave Balances (Aggregated by Category)'}
+            </span>
+            {selectedEmployee && (
+              <Badge variant="neutral" size="sm">
+                {selectedEmployee.employee_id}
+              </Badge>
+            )}
+          </h2>
+          <span className="text-xs text-slate-500">
+            {displayAllocations.length} Active Categories
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {displayAllocations.map((alloc) => (
+            <div key={alloc.id} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-card">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">{alloc.leave_type_name}</span>
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: `${alloc.leave_color}20`, color: alloc.leave_color }}
+                >
+                  {alloc.leave_type_code}
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-3xl font-black text-slate-900">{alloc.remaining_days}</span>
+                <span className="text-xs font-semibold text-slate-500">of {alloc.allocated_days} days</span>
+              </div>
+
+              <div className="mt-3 w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (parseFloat(alloc.remaining_days) / parseFloat(alloc.allocated_days || 1)) * 100
+                    )}%`,
+                    backgroundColor: alloc.leave_color || '#10b981'
+                  }}
+                />
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                <span>Used: <b>{alloc.used_days}d</b></span>
+                <span>Pending: <b>{alloc.pending_days}d</b></span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Requests Table */}
-      <DataTable
-        columns={columns}
-        data={requests}
-        loading={loading}
-        searchPlaceholder="Search requests by employee or reason..."
-      />
+      {/* Main Content Area: Tabs between Requests & Staff Balance Ledger */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'requests'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+              }`}
+            >
+              <Palmtree className="w-3.5 h-3.5" />
+              Time Off Requests ({filteredRequests.length})
+            </button>
+
+            {!isEmployeeOnly && (
+              <button
+                onClick={() => setActiveTab('ledger')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                  activeTab === 'ledger'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Staff Balance Ledger ({staffBalanceLedger.length} Employees)
+              </button>
+            )}
+          </div>
+
+          {activeTab === 'requests' && (
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
+              {[
+                { id: 'all', label: 'All', count: requests.length },
+                { id: 'submitted', label: 'Pending', count: pendingCount },
+                { id: 'approved', label: 'Approved', count: approvedCount },
+                { id: 'refused', label: 'Refused', count: refusedCount }
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  onClick={() => setStatusFilter(pill.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                    statusFilter === pill.id
+                      ? 'bg-emerald-100 text-emerald-900 font-bold'
+                      : 'text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {pill.label} ({pill.count})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* View 1: Requests Table */}
+        {activeTab === 'requests' && (
+          <DataTable
+            columns={requestColumns}
+            data={filteredRequests}
+            loading={loading}
+            searchPlaceholder="Search requests by employee or reason..."
+          />
+        )}
+
+        {/* View 2: Staff Balance Ledger Table */}
+        {activeTab === 'ledger' && !isEmployeeOnly && (
+          <DataTable
+            columns={ledgerColumns}
+            data={staffBalanceLedger}
+            loading={loading}
+            searchPlaceholder="Search employee balances by name or code..."
+          />
+        )}
+      </div>
 
       {/* Submit Leave Request Modal */}
       <Modal
@@ -316,7 +748,9 @@ export function TimeOffDashboard() {
             >
               <option value="">Choose Employee (or Self)...</option>
               {employees.map((e) => (
-                <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.employee_id})</option>
+                <option key={e.id} value={e.id}>
+                  {e.first_name} {e.last_name} ({e.employee_id})
+                </option>
               ))}
             </Select>
           )}

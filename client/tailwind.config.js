@@ -7,17 +7,20 @@ export default {
   theme: {
     extend: {
       colors: {
+        cream: {
+          50: '#FDFCF9',
+          100: '#FAF8F5',
+          200: '#F5F1E8',
+          300: '#EDE6D8',
+          400: '#E2D8C3',
+          500: '#D5C7AE',
+        },
         brand: {
           50: '#f0fdf4',
           100: '#dcfce7',
           500: '#10b981',
           600: '#059669',
           700: '#047857',
-        },
-        sidebar: {
-          DEFAULT: '#0f172a',
-          hover: '#1e293b',
-          active: '#334155'
         }
       },
       fontFamily: {
@@ -25,8 +28,8 @@ export default {
       },
       boxShadow: {
         'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
-        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-        'dropdown': '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)'
+        'card': '0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05)',
+        'dropdown': '0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04)'
       }
     },
   },

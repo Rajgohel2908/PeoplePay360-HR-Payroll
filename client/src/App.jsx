@@ -184,6 +184,14 @@ export function App() {
           }
         />
         <Route
+          path="/payroll/wizard"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'payroll_manager', 'payroll_user']}>
+              <PayrunWizard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/payruns/new"
           element={
             <ProtectedRoute allowedRoles={['admin', 'payroll_manager', 'payroll_user']}>
