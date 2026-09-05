@@ -6,6 +6,15 @@ const { ROLES, PAYRUN_STATUS, VALIDATION_SEVERITY, VALIDATION_CATEGORY, ATTENDAN
 async function seedDatabase() {
   const existingUsers = await db('users').count('id as count').first();
   if (parseInt(existingUsers.count, 10) > 0) {
+    const existingPayruns = await db('payruns').count('id as count').first();
+    if (parseInt(existingPayruns?.count || 0, 10) === 0) {
+      try {
+        const { seedPayrunsData } = require('./seed_payruns_helper');
+        await seedPayrunsData();
+      } catch (err) {
+        console.error('Error auto-seeding payruns:', err);
+      }
+    }
     console.log('Database already seeded. Skipping initial seeding.');
     return;
   }
