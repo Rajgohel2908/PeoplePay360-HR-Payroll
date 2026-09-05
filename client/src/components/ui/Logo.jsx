@@ -12,6 +12,7 @@ export function Logo({
   showText = true,
   withLink = false,
   className = '',
+  imgClassName = '',
   alt = 'PeoplePay360 HR & Payroll'
 }) {
   const sizeClasses = {
@@ -19,10 +20,13 @@ export function Logo({
     sm: variant === 'icon' || !showText ? 'w-8 h-8' : 'h-8 w-auto',
     md: variant === 'icon' || !showText ? 'w-9 h-9' : 'h-9 w-auto',
     lg: variant === 'icon' || !showText ? 'w-12 h-12' : 'h-12 w-auto',
-    xl: variant === 'icon' || !showText ? 'w-16 h-16' : 'h-16 w-auto'
+    xl: variant === 'icon' || !showText ? 'w-16 h-16' : 'h-16 w-auto',
+    '2xl': variant === 'icon' || !showText ? 'w-24 h-24' : 'h-24 w-auto',
+    '3xl': variant === 'icon' || !showText ? 'w-32 h-32' : 'h-32 w-auto',
+    'hero': variant === 'icon' || !showText ? 'w-48 h-48' : 'h-24 sm:h-32 lg:h-40 w-auto max-w-full'
   };
 
-  const selectedSize = sizeClasses[size] || sizeClasses.md;
+  const selectedSize = sizeClasses[size] || size;
 
   let src = '/logo-trimmed.png';
   if (variant === 'icon' || !showText) {
@@ -36,7 +40,7 @@ export function Logo({
       <img
         src={src}
         alt={alt}
-        className={`object-contain select-none transition-transform duration-200 ${selectedSize}`}
+        className={`object-contain select-none transition-transform duration-200 ${selectedSize} ${imgClassName}`}
         draggable="false"
       />
     </div>

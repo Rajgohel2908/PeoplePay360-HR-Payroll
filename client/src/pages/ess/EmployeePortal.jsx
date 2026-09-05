@@ -7,7 +7,7 @@ import {
   LogOut,
   CalendarCheck,
   Palmtree,
-  Receipt,
+  ReceiptIndianRupee,
   Download,
   Plus,
   ArrowRight,
@@ -246,7 +246,7 @@ export function EmployeePortal() {
           title="My Payslips"
           value={`${payslips.length} Records`}
           subtitle="Latest ready for download"
-          icon={Receipt}
+          icon={ReceiptIndianRupee}
           variant="purple"
           onClick={() => navigate('/payslips')}
         />

@@ -6,7 +6,6 @@ import {
   Plus,
   Search,
   Building,
-  DollarSign,
   Calendar,
   AlertTriangle,
   CheckCircle2,

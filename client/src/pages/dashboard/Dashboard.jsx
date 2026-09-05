@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
-  DollarSign,
-  Receipt,
+  IndianRupee,
+  ReceiptIndianRupee,
   Palmtree,
   Activity,
   AlertTriangle,
@@ -189,7 +189,7 @@ export function Dashboard() {
             variant="primary"
             size="sm"
             onClick={() => navigate('/payroll/wizard')}
-            icon={DollarSign}
+            icon={IndianRupee}
           >
             New Payrun Wizard
           </Button>
@@ -238,7 +238,7 @@ export function Dashboard() {
           title="Total Gross Payroll"
           value={formatCurrency(kpis.totalGrossSalary)}
           subtitle="Current active payroll cycle"
-          icon={DollarSign}
+          icon={IndianRupee}
           variant="blue"
           onClick={() => navigate('/payroll')}
         />
@@ -247,7 +247,7 @@ export function Dashboard() {
           title="Net Disbursement"
           value={formatCurrency(kpis.totalNetSalary)}
           subtitle="Net wages after taxes & PF"
-          icon={Receipt}
+          icon={ReceiptIndianRupee}
           variant="purple"
           onClick={() => navigate('/payslips')}
         />
@@ -295,7 +295,7 @@ export function Dashboard() {
             <p className="text-[11px] text-slate-500 mt-0.5">Archived PDF payslip records</p>
           </div>
           <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
-            <Receipt className="w-5 h-5" />
+            <ReceiptIndianRupee className="w-5 h-5" />
           </div>
         </div>
       </div>
