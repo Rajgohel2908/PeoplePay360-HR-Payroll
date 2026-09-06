@@ -4,7 +4,7 @@ const { logAudit } = require('../services/auditService');
 
 async function getStructures(req, res, next) {
   try {
-    const structures = await db('salary_structures');
+    const structures = await db('salary_structures').orderBy('id', 'desc');
 
     for (const s of structures) {
       const rules = await db('salary_rules')

@@ -21,7 +21,8 @@ async function getUsers(req, res, next) {
         'e.last_name',
         'e.employee_id as emp_code'
       )
-      .orderBy('u.created_at', 'desc');
+      .orderBy('u.created_at', 'desc')
+      .orderBy('u.id', 'desc');
 
     res.json({ success: true, data: users });
   } catch (err) {
@@ -107,7 +108,7 @@ async function updateUser(req, res, next) {
 
 async function getSettings(req, res, next) {
   try {
-    const settings = await db('system_settings');
+    const settings = await db('system_settings').orderBy('id', 'desc');
     const settingsMap = {};
     settings.forEach(s => {
       settingsMap[s.key] = s.value;
@@ -156,6 +157,7 @@ async function getAuditLogs(req, res, next) {
 
     const logs = await query
       .orderBy('created_at', 'desc')
+      .orderBy('id', 'desc')
       .limit(parseInt(limit, 10))
       .offset(offset);
 
@@ -195,6 +197,7 @@ async function globalSearch(req, res, next) {
       .orWhere('e.last_name', 'like', `%${term}%`)
       .orWhere('e.employee_id', 'like', `%${term}%`)
       .orWhere('e.email', 'like', `%${term}%`)
+      .orderBy('e.id', 'desc')
       .limit(5);
 
     // 2. Contracts
@@ -204,6 +207,7 @@ async function globalSearch(req, res, next) {
       .where('c.contract_id', 'like', `%${term}%`)
       .orWhere('e.first_name', 'like', `%${term}%`)
       .orWhere('e.last_name', 'like', `%${term}%`)
+      .orderBy('c.id', 'desc')
       .limit(5);
 
     // 3. Payruns
@@ -211,6 +215,7 @@ async function globalSearch(req, res, next) {
       .select('id', 'payrun_number', 'title', 'period_start', 'status', 'total_net')
       .where('payrun_number', 'like', `%${term}%`)
       .orWhere('title', 'like', `%${term}%`)
+      .orderBy('id', 'desc')
       .limit(5);
 
     // 4. Payslips
@@ -219,6 +224,7 @@ async function globalSearch(req, res, next) {
       .select('ps.id', 'ps.payslip_number', 'ps.period_start', 'ps.net_salary', 'e.first_name', 'e.last_name', 'e.employee_id as emp_code')
       .where('ps.payslip_number', 'like', `%${term}%`)
       .orWhere('e.employee_id', 'like', `%${term}%`)
+      .orderBy('ps.id', 'desc')
       .limit(5);
 
     res.json({

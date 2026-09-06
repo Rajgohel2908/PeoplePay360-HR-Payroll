@@ -15,8 +15,8 @@ async function getEmployees(req, res, next) {
       job_position_id,
       employment_status,
       employee_type,
-      sort_by = 'first_name',
-      sort_order = 'asc'
+      sort_by = 'created_at',
+      sort_order = 'desc'
     } = req.query;
 
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -66,6 +66,7 @@ async function getEmployees(req, res, next) {
     // Fetch paginated results
     const employees = await query
       .orderBy(`e.${sort_by}`, sort_order)
+      .orderBy('e.id', 'desc')
       .limit(parseInt(limit, 10))
       .offset(offset);
 
@@ -163,12 +164,14 @@ async function getEmployee360(req, res, next) {
       .leftJoin('working_schedules as ws', 'c.working_schedule_id', 'ws.id')
       .select('c.*', 'ss.name as salary_structure_name', 'ws.name as schedule_name')
       .where('c.employee_id', empDbId)
-      .orderBy('c.start_date', 'desc');
+      .orderBy('c.created_at', 'desc')
+      .orderBy('c.id', 'desc');
 
     // 3. Attendance Recent Logs & Stats
     const recentAttendance = await db('attendance')
       .where('employee_id', empDbId)
       .orderBy('date', 'desc')
+      .orderBy('id', 'desc')
       .limit(30);
 
     const attendanceStats = await db('attendance')
@@ -194,19 +197,22 @@ async function getEmployee360(req, res, next) {
       .leftJoin('users as u', 'r.approver_id', 'u.id')
       .select('r.*', 't.name as leave_type_name', 't.code as leave_type_code', 't.color as leave_color', 'u.username as approver_name')
       .where('r.employee_id', empDbId)
-      .orderBy('r.start_date', 'desc');
+      .orderBy('r.created_at', 'desc')
+      .orderBy('r.id', 'desc');
 
     // 5. Payslips History
     const payslips = await db('payslips as ps')
       .leftJoin('payruns as pr', 'ps.payrun_id', 'pr.id')
       .select('ps.*', 'pr.payrun_number', 'pr.title as payrun_title')
       .where('ps.employee_id', empDbId)
-      .orderBy('ps.period_start', 'desc');
+      .orderBy('ps.period_start', 'desc')
+      .orderBy('ps.id', 'desc');
 
     // 6. Documents
     const documents = await db('documents')
       .where('employee_id', empDbId)
-      .orderBy('created_at', 'desc');
+      .orderBy('created_at', 'desc')
+      .orderBy('id', 'desc');
 
     // 7. Audit History for Employee
     const auditLogs = await db('audit_logs')
@@ -214,6 +220,7 @@ async function getEmployee360(req, res, next) {
       .where('entity_id', String(empDbId))
       .orWhere('entity_id', employee.employee_id)
       .orderBy('created_at', 'desc')
+      .orderBy('id', 'desc')
       .limit(20);
 
     res.json({
@@ -539,11 +546,19 @@ async function deleteEmployee(req, res, next) {
 
       return res.json({
         success: true,
-        message: 'Employee has historical payroll records. Status changed to Terminated to preserve audit integrity.'
+        message: 'Employee has historical payroll records. Employment status updated to Terminated to preserve audit compliance.'
       });
     }
 
-    await db('employees').where('id', id).del();
+    await db.transaction(async (trx) => {
+      // Clean up auxiliary employee references
+      await trx('users').where('employee_id', id).update({ employee_id: null, is_active: false });
+      await trx('attendance').where('employee_id', id).del();
+      await trx('time_off_requests').where('employee_id', id).del();
+      await trx('time_off_allocations').where('employee_id', id).del();
+      await trx('contracts').where('employee_id', id).del();
+      await trx('employees').where('id', id).del();
+    });
 
     await logAudit({
       userId: req.user?.id,
@@ -559,7 +574,7 @@ async function deleteEmployee(req, res, next) {
 
     res.json({
       success: true,
-      message: 'Employee deleted successfully.'
+      message: `${employee.first_name} ${employee.last_name} was deleted successfully.`
     });
   } catch (err) {
     next(err);

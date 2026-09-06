@@ -4,7 +4,7 @@ const { logAudit } = require('../services/auditService');
 
 async function getSchedules(req, res, next) {
   try {
-    const schedules = await db('working_schedules');
+    const schedules = await db('working_schedules').orderBy('id', 'desc');
 
     for (const s of schedules) {
       const days = await db('schedule_days')

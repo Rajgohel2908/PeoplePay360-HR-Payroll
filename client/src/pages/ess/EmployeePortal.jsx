@@ -47,6 +47,8 @@ export function EmployeePortal() {
 
   const today = getLocalTodayString();
 
+  const [submittingLeave, setSubmittingLeave] = useState(false);
+
   const [leaveForm, setLeaveForm] = useState({
     leave_type_id: 1,
     start_date: today,
@@ -54,6 +56,19 @@ export function EmployeePortal() {
     duration_days: 1.0,
     reason: 'Personal time off'
   });
+
+  // Auto-calculate leave duration in ESS portal
+  useEffect(() => {
+    if (leaveForm.start_date && leaveForm.end_date) {
+      const s = new Date(leaveForm.start_date);
+      const e = new Date(leaveForm.end_date);
+      if (e >= s) {
+        const diffTime = e.getTime() - s.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        setLeaveForm((prev) => ({ ...prev, duration_days: Math.max(1, diffDays) }));
+      }
+    }
+  }, [leaveForm.start_date, leaveForm.end_date]);
 
   const loadESSData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -101,21 +116,10 @@ export function EmployeePortal() {
     }
   };
 
-  const handleDownloadPdf = async (payslipId, number) => {
-    try {
-      const blob = await api.downloadPdf(`/payslips/${payslipId}/pdf`);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Payslip-${number}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      showSuccess(`Downloaded Payslip-${number}.pdf`);
-    } catch (err) {
-      showError(err.message || 'Failed to download PDF.');
-    }
+  const handleDownloadPdf = (payslipId) => {
+    // Navigate to the payslip detail page where the pixel-perfect
+    // client-side html2canvas export is available
+    navigate(`/payslips/${payslipId}`);
   };
 
   const handleApplyLeave = async (e) => {
@@ -132,20 +136,21 @@ export function EmployeePortal() {
       return;
     }
 
-    setShowLeaveModal(false);
-    showSuccess('Leave request submitted to your reporting manager.');
-
+    setSubmittingLeave(true);
     try {
       const res = await api.post('/time-off/requests', {
         ...leaveForm,
-        employee_id: user.employee_id
+        employee_id: user?.employee_id
       });
       if (res.success) {
+        showSuccess(res.message || 'Leave request submitted successfully to HR department.');
+        setShowLeaveModal(false);
         await loadESSData(true);
       }
     } catch (err) {
       showError(err.message || 'Failed to submit leave.');
-      loadESSData(true);
+    } finally {
+      setSubmittingLeave(false);
     }
   };
 
@@ -300,7 +305,7 @@ export function EmployeePortal() {
                     variant="outline"
                     size="xs"
                     icon={Download}
-                    onClick={() => handleDownloadPdf(ps.id, ps.payslip_number)}
+                    onClick={() => handleDownloadPdf(ps.id)}
                   >
                     PDF
                   </Button>
@@ -426,10 +431,10 @@ export function EmployeePortal() {
           />
 
           <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setShowLeaveModal(false)}>
+            <Button variant="ghost" onClick={() => setShowLeaveModal(false)} disabled={submittingLeave}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" loading={submittingLeave} disabled={submittingLeave}>
               Submit Request
             </Button>
           </div>

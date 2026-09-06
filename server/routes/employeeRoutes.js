@@ -23,6 +23,6 @@ router.post('/', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MA
 router.get('/360/:id', requireSelfOrHR('id'), getEmployee360);
 router.get('/:id', requireSelfOrHR('id'), getEmployeeById);
 router.put('/:id', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER]), updateEmployee);
-router.delete('/:id', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER]), deleteEmployee);
+router.delete('/:id', requireRole([ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER]), deleteEmployee);
 
 module.exports = router;

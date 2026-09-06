@@ -467,8 +467,228 @@ This code is valid for 60 minutes. If you did not request this, you can safely i
   return { success: emailStatus === 'Sent', error: errorMessage };
 }
 
+/**
+ * Sends notification email to HR and manager when an employee submits a time off request.
+ */
+async function sendLeaveRequestSubmittedEmail({
+  employeeName,
+  employeeCode,
+  leaveType,
+  startDate,
+  endDate,
+  durationDays,
+  reason,
+  hrEmails = []
+}) {
+  const mailer = getTransporter();
+  const fromAddress = process.env.EMAIL_FROM || `"PeoplePay360 HR" <${process.env.SMTP_USER}>`;
+  const appUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+
+  // Include configured SMTP user as guaranteed recipient if available
+  const recipients = Array.from(new Set([
+    process.env.SMTP_USER,
+    ...hrEmails
+  ])).filter((e) => e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+
+  if (recipients.length === 0) {
+    console.warn('⚠️ [Leave Email] No valid HR recipients found to send leave request notification.');
+    return { success: false, reason: 'No recipients' };
+  }
+
+  const subject = `[PeoplePay360] New Leave Request: ${employeeName} (${leaveType})`;
+  const htmlContent = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+      <div style="background: linear-gradient(135deg, #0284c7, #0369a1); padding: 32px 24px; text-align: center; color: #ffffff;">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 800;">PeoplePay360</h1>
+        <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">Time Off & Leave Management</p>
+      </div>
+
+      <div style="padding: 32px 28px;">
+        <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a; font-weight: 700;">
+          New Leave Request Submitted for Approval
+        </h2>
+        <p style="margin: 0 0 20px 0; font-size: 14px; color: #475569; line-height: 1.6;">
+          <strong>${employeeName}</strong> (${employeeCode}) has submitted a new time off request requiring management review.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; width: 35%;">Leave Type:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">${leaveType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Duration:</td>
+              <td style="padding: 6px 0; color: #0284c7; font-weight: 700;">${durationDays} Day(s)</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Period:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${startDate} &rarr; ${endDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Reason:</td>
+              <td style="padding: 6px 0; color: #334155; font-style: italic;">"${reason || 'Not specified'}"</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0 20px 0;">
+          <a href="${appUrl}/time-off" style="display: inline-block; background: #0284c7; color: #ffffff; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);">
+            Review & Decide on Leave Request &rarr;
+          </a>
+        </div>
+      </div>
+
+      <div style="background: #f8fafc; padding: 16px 24px; border-top: 1px solid #f1f5f9; text-align: center; font-size: 11px; color: #94a3b8;">
+        This is an automated notification from PeoplePay360 HR Leave Management.
+      </div>
+    </div>
+  `;
+
+  for (const recipient of recipients) {
+    let emailStatus = 'Sent';
+    let errorMessage = null;
+    try {
+      if (mailer) {
+        await mailer.sendMail({
+          from: fromAddress,
+          to: recipient,
+          subject,
+          html: htmlContent
+        });
+        console.log(`✅ [Nodemailer] Leave request notification sent to ${recipient}`);
+      }
+    } catch (err) {
+      console.error(`❌ [Nodemailer Error] Leave request email failed to ${recipient}:`, err.message);
+      emailStatus = 'Failed';
+      errorMessage = err.message;
+    }
+
+    try {
+      await db('email_logs').insert({
+        recipient_email: recipient,
+        subject,
+        status: emailStatus,
+        error_message: errorMessage,
+        sent_at: new Date()
+      });
+    } catch (dbErr) {}
+  }
+
+  return { success: true };
+}
+
+/**
+ * Sends notification email to the employee when HR Approves (Accepts) or Refuses (Rejects) their leave request.
+ */
+async function sendLeaveDecisionEmail({
+  employeeEmail,
+  employeeName,
+  leaveType,
+  startDate,
+  endDate,
+  durationDays,
+  status, // 'approved' | 'refused'
+  approverName,
+  approverComment
+}) {
+  const isApproved = status === 'approved';
+  const mailer = getTransporter();
+  const fromAddress = process.env.EMAIL_FROM || `"PeoplePay360 HR" <${process.env.SMTP_USER}>`;
+
+  if (!employeeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employeeEmail)) {
+    console.warn(`⚠️ [Leave Decision Email] Invalid employee email: ${employeeEmail}`);
+    return { success: false, reason: 'Invalid email' };
+  }
+
+  const subject = `[PeoplePay360] Leave Request ${isApproved ? 'APPROVED' : 'DECLINED'}: ${leaveType}`;
+  const bannerColor = isApproved ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, #dc2626, #ef4444)';
+  const badgeBg = isApproved ? '#ecfdf5' : '#fef2f2';
+  const badgeText = isApproved ? '#047857' : '#b91c1c';
+
+  const htmlContent = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+      <div style="background: ${bannerColor}; padding: 32px 24px; text-align: center; color: #ffffff;">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 800;">PeoplePay360</h1>
+        <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.95;">Leave Request Decision</p>
+      </div>
+
+      <div style="padding: 32px 28px;">
+        <p style="margin: 0 0 16px 0; font-size: 15px; color: #0f172a;">
+          Hello <strong>${employeeName}</strong>,
+        </p>
+        <p style="margin: 0 0 20px 0; font-size: 14px; color: #475569; line-height: 1.6;">
+          Your request for <strong>${leaveType}</strong> has been 
+          <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 13px; background: ${badgeBg}; color: ${badgeText};">
+            ${isApproved ? 'APPROVED' : 'DECLINED'}
+          </span>
+          by ${approverName || 'Management'}.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; width: 35%;">Leave Type:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">${leaveType}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Period:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${startDate} &rarr; ${endDate} (${durationDays} Days)</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Decision:</td>
+              <td style="padding: 6px 0; font-weight: 700; color: ${badgeText};">${isApproved ? 'Approved & Recorded' : 'Declined'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Approver Remarks:</td>
+              <td style="padding: 6px 0; color: #334155; font-style: italic;">"${approverComment || (isApproved ? 'Approved.' : 'Declined by HR.')}"</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div style="background: #f8fafc; padding: 16px 24px; border-top: 1px solid #f1f5f9; text-align: center; font-size: 11px; color: #94a3b8;">
+        This is an automated notification from PeoplePay360 HR Leave Management.
+      </div>
+    </div>
+  `;
+
+  let emailStatus = 'Sent';
+  let errorMessage = null;
+  try {
+    if (mailer) {
+      await mailer.sendMail({
+        from: fromAddress,
+        to: employeeEmail,
+        subject,
+        html: htmlContent
+      });
+      console.log(`✅ [Nodemailer] Leave decision email sent to ${employeeEmail}`);
+    }
+  } catch (err) {
+    console.error(`❌ [Nodemailer Error] Leave decision email failed to ${employeeEmail}:`, err.message);
+    emailStatus = 'Failed';
+    errorMessage = err.message;
+  }
+
+  try {
+    await db('email_logs').insert({
+      recipient_email: employeeEmail,
+      subject,
+      status: emailStatus,
+      error_message: errorMessage,
+      sent_at: new Date()
+    });
+  } catch (dbErr) {}
+
+  return { success: emailStatus === 'Sent' };
+}
+
 module.exports = {
   dispatchBulkPayslips,
   sendWelcomeCredentialsEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendLeaveRequestSubmittedEmail,
+  sendLeaveDecisionEmail
 };
+

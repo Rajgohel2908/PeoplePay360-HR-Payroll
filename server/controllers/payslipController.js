@@ -64,6 +64,8 @@ async function getPayslips(req, res, next) {
 
     const payslips = await query
       .orderBy('ps.period_start', 'desc')
+      .orderBy('ps.created_at', 'desc')
+      .orderBy('ps.id', 'desc')
       .limit(parseInt(limit, 10))
       .offset(offset);
 
@@ -210,7 +212,10 @@ async function getEmailLogs(req, res, next) {
       query = query.where('el.payrun_id', payrun_id);
     }
 
-    const logs = await query.orderBy('el.sent_at', 'desc').limit(50);
+    const logs = await query
+      .orderBy('el.sent_at', 'desc')
+      .orderBy('el.id', 'desc')
+      .limit(50);
 
     res.json({ success: true, data: logs });
   } catch (err) {

@@ -1,5 +1,5 @@
 // client/src/pages/admin/AuditLogViewer.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldCheck, 
   Search, 
@@ -26,6 +26,7 @@ import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { SkeletonTable } from '../../components/ui/SkeletonLoader';
+import { exportTableAsCsv, exportElementAsPdf } from '../../utils/exportUtils';
 
 export default function AuditLogViewer() {
   const [logs, setLogs] = useState([]);
@@ -36,6 +37,8 @@ export default function AuditLogViewer() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [inspectLog, setInspectLog] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const tableRef = useRef(null);
 
   const fetchLogs = async () => {
     try {
@@ -85,26 +88,31 @@ export default function AuditLogViewer() {
 
   const exportAuditCSV = () => {
     if (!logs.length) return;
-    const headers = ['Timestamp', 'User', 'Role', 'Action', 'Entity', 'Entity ID', 'Reason', 'IP Address'];
-    const rows = logs.map(l => [
-      new Date(l.created_at).toISOString(),
-      `"${l.user_name || 'System'}"`,
-      l.user_role || 'system',
-      l.action,
-      l.entity,
-      l.entity_id || '',
-      `"${(l.reason || '').replace(/"/g, '""')}"`,
-      l.ip_address || ''
-    ]);
+    const columns = [
+      { key: 'created_at', header: 'Timestamp', format: (v) => new Date(v).toLocaleString() },
+      { key: 'user_name', header: 'User', format: (v) => v || 'System' },
+      { key: 'user_role', header: 'Role', format: (v) => v || 'automated' },
+      { key: 'action', header: 'Action' },
+      { key: 'entity', header: 'Target Entity' },
+      { key: 'entity_id', header: 'Entity ID' },
+      { key: 'reason', header: 'Reason / Notes' },
+      { key: 'ip_address', header: 'Origin IP', format: (v) => v || '127.0.0.1' }
+    ];
+    const filename = `PEOPLEPAY360_Audit_Trail_${new Date().toISOString().split('T')[0]}`;
+    exportTableAsCsv(logs, columns, filename);
+  };
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `PEOPLEPAY360_Audit_Trail_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const exportAuditPdf = async () => {
+    if (!tableRef.current) return;
+    setExportingPdf(true);
+    try {
+      const filename = `PEOPLEPAY360_Audit_Trail_${new Date().toISOString().split('T')[0]}`;
+      await exportElementAsPdf(tableRef.current, filename, { orientation: 'landscape' });
+    } catch (err) {
+      console.error('Failed to export audit PDF:', err);
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const formatJSON = (raw) => {
@@ -136,6 +144,9 @@ export default function AuditLogViewer() {
         <div className="flex items-center gap-2.5">
           <Button variant="outline" size="sm" onClick={fetchLogs} icon={<RefreshCw className="w-4 h-4" />}>
             Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportAuditPdf} loading={exportingPdf} icon={<FileText className="w-4 h-4" />}>
+            {exportingPdf ? 'Exporting...' : 'Export PDF'}
           </Button>
           <Button variant="outline" size="sm" onClick={exportAuditCSV} icon={<Download className="w-4 h-4" />}>
             Export CSV
@@ -252,7 +263,7 @@ export default function AuditLogViewer() {
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div ref={tableRef} className="overflow-x-auto" data-export-id="audit-table">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/75 text-xs font-semibold uppercase tracking-wider text-slate-600">

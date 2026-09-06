@@ -13,6 +13,7 @@ async function getNotifications(req, res, next) {
       .where('user_id', req.user.id)
       .orWhereNull('user_id')
       .orderBy('created_at', 'desc')
+      .orderBy('id', 'desc')
       .limit(40);
 
     const unreadCountResult = await db('notifications')

@@ -1,5 +1,5 @@
 // client/src/pages/reports/ReportsDashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileBarChart2,
   Download,
@@ -19,12 +19,15 @@ import { Badge } from '../../components/ui/Badge';
 import { DataTable } from '../../components/ui/DataTable';
 import { PaginationControls } from '../../components/ui/PaginationControls';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { exportTableAsCsv, exportElementAsPdf, formatINR, formatExportDate } from '../../utils/exportUtils';
 
 export function ReportsDashboard() {
   const [activeReport, setActiveReport] = useState('payroll-summary');
   const [reportData, setReportData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const tableRef = useRef(null);
 
   const { showSuccess, showError } = useNotifications();
 
@@ -49,26 +52,87 @@ export function ReportsDashboard() {
 
   const formatCurrency = (val) => `₹${parseFloat(val || 0).toLocaleString('en-IN')}`;
 
+  // Column definitions for each report type (used for CSV export)
+  const reportColumnDefs = {
+    'payroll-summary': [
+      { key: 'payrun_number', header: 'Payrun Reference' },
+      { key: 'period_start', header: 'Period Start', format: formatExportDate },
+      { key: 'period_end', header: 'Period End', format: formatExportDate },
+      { key: 'total_employees', header: 'Total Employees' },
+      { key: 'total_gross', header: 'Total Gross (₹)', format: (v) => formatINR(v) },
+      { key: 'total_deductions', header: 'Total Deductions (₹)', format: (v) => formatINR(v) },
+      { key: 'total_net', header: 'Net Payout (₹)', format: (v) => formatINR(v) },
+      { key: 'status', header: 'Status', format: (v) => (v || '').toUpperCase() }
+    ],
+    'department-cost': [
+      { key: 'department_name', header: 'Department' },
+      { key: 'department_code', header: 'Cost Center' },
+      { key: 'employee_count', header: 'Headcount' },
+      { key: 'total_monthly_wage', header: 'Total Monthly Wage (₹)', format: (v) => formatINR(v) },
+      { key: 'average_wage', header: 'Average Wage (₹)', format: (v) => formatINR(v) },
+      { key: 'min_wage', header: 'Min Wage (₹)', format: (v) => formatINR(v) },
+      { key: 'max_wage', header: 'Max Wage (₹)', format: (v) => formatINR(v) }
+    ],
+    'attendance': [
+      { key: 'employee_name', header: 'Employee' },
+      { key: 'emp_code', header: 'Employee ID' },
+      { key: 'department_name', header: 'Department' },
+      { key: 'total_days_logged', header: 'Days Logged' },
+      { key: 'present_days', header: 'Present Days' },
+      { key: 'late_days', header: 'Late Arrivals' },
+      { key: 'missing_checkouts', header: 'Missing Checkouts' },
+      { key: 'total_worked_hours', header: 'Total Hours Worked' }
+    ],
+    'leave': [
+      { key: 'employee_name', header: 'Employee' },
+      { key: 'emp_code', header: 'Employee ID' },
+      { key: 'department_name', header: 'Department' },
+      { key: 'leave_type', header: 'Leave Type' },
+      { key: 'allocated_days', header: 'Allocated Days' },
+      { key: 'used_days', header: 'Used Days' },
+      { key: 'pending_days', header: 'Pending Days' },
+      { key: 'remaining_days', header: 'Remaining Balance' }
+    ],
+    'contracts-expiry': [
+      { key: 'contract_id', header: 'Contract Code' },
+      { key: 'employee_name', header: 'Employee' },
+      { key: 'emp_code', header: 'Employee ID' },
+      { key: 'department_name', header: 'Department' },
+      { key: 'position_title', header: 'Role' },
+      { key: 'start_date', header: 'Start Date', format: formatExportDate },
+      { key: 'end_date', header: 'Expiry Date', format: formatExportDate },
+      { key: 'wage', header: 'Wage (₹)', format: (v) => formatINR(v) },
+      { key: 'status', header: 'Status', format: (v) => (v || '').toUpperCase() }
+    ]
+  };
+
   const handleExportCsv = () => {
-    if (!reportData || reportData.length === 0) {
-      showError('No data available to export.');
-      return;
+    try {
+      const columns = reportColumnDefs[activeReport];
+      if (!columns) {
+        showError('No column definition for this report.');
+        return;
+      }
+      const filename = `PeoplePay360_${activeReport}_${new Date().toISOString().slice(0, 10)}`;
+      exportTableAsCsv(reportData, columns, filename);
+      showSuccess('Report exported successfully to CSV.');
+    } catch (err) {
+      showError(err.message || 'Failed to export CSV.');
     }
+  };
 
-    const headers = Object.keys(reportData[0]).join(',');
-    const rows = reportData.map(row =>
-      Object.values(row).map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(',')
-    );
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `PeoplePay360_${activeReport}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showSuccess('Report exported successfully to CSV.');
+  const handleExportPdf = async () => {
+    if (!tableRef.current) return;
+    setExporting(true);
+    try {
+      const filename = `PeoplePay360_${activeReport}_${new Date().toISOString().slice(0, 10)}`;
+      await exportElementAsPdf(tableRef.current, filename, { orientation: 'landscape' });
+      showSuccess('Report exported as PDF successfully.');
+    } catch (err) {
+      showError(err.message || 'Failed to export PDF.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const reportTabs = [
@@ -92,15 +156,27 @@ export function ReportsDashboard() {
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          icon={Download}
-          onClick={handleExportCsv}
-          disabled={loading || reportData.length === 0}
-        >
-          Export Current View (CSV)
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            icon={FileText}
+            loading={exporting}
+            onClick={handleExportPdf}
+            disabled={loading || reportData.length === 0}
+          >
+            {exporting ? 'Exporting...' : 'Export as PDF'}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Download}
+            onClick={handleExportCsv}
+            disabled={loading || reportData.length === 0}
+          >
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* Report Selector Tabs */}
@@ -128,7 +204,7 @@ export function ReportsDashboard() {
         const paginatedData = reportData.slice((currentPage - 1) * 10, currentPage * 10);
         return (
           <Card noPadding>
-            <div className="overflow-x-auto">
+            <div ref={tableRef} className="overflow-x-auto" data-export-id="report-table">
               {activeReport === 'payroll-summary' && (
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">

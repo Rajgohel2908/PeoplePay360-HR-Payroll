@@ -21,7 +21,8 @@ async function getPayrollSummaryReport(req, res, next) {
         'pr.total_lop',
         'ss.name as structure_name'
       )
-      .orderBy('pr.period_start', 'desc');
+      .orderBy('pr.period_start', 'desc')
+      .orderBy('pr.id', 'desc');
 
     if (year && year !== 'all') {
       query = query.where('pr.period_start', 'like', `${year}%`);
@@ -48,7 +49,8 @@ async function getDepartmentPayrollReport(req, res, next) {
         db.raw('AVG(c.wage) as average_wage'),
         db.raw('MIN(c.wage) as min_wage'),
         db.raw('MAX(c.wage) as max_wage')
-      );
+      )
+      .orderBy('total_monthly_wage', 'desc');
 
     res.json({ success: true, data });
   } catch (err) {
@@ -75,7 +77,8 @@ async function getAttendanceReport(req, res, next) {
         db.raw("SUM(a.worked_hours) as total_worked_hours"),
         db.raw("SUM(a.overtime_hours) as total_overtime_hours"),
         db.raw("SUM(a.late_minutes) as total_late_minutes")
-      );
+      )
+      .orderBy('total_days_logged', 'desc');
 
     if (start_date) query = query.where('a.date', '>=', start_date);
     if (end_date) query = query.where('a.date', '<=', end_date);
@@ -106,7 +109,7 @@ async function getLeaveReport(req, res, next) {
         'a.pending_days',
         'a.remaining_days'
       )
-      .orderBy('e.first_name', 'asc');
+      .orderBy('a.id', 'desc');
 
     if (year && year !== 'all') {
       query = query.where('a.year', year);

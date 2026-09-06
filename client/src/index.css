@@ -66,13 +66,56 @@
 
 /* Print utility for payslips */
 @media print {
-  .no-print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .no-print,
+  nav,
+  aside,
+  header {
     display: none !important;
   }
+
   .print-only {
     display: block !important;
   }
-  body {
-    background: #ffffff !important;
+
+  /* Reset layout constraints during print */
+  .flex.h-screen {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    display: block !important;
+  }
+
+  #payslip-document-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }
+

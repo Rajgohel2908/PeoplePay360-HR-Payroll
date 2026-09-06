@@ -1,5 +1,5 @@
 // client/src/pages/payslips/PayslipDetail.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Download,
@@ -13,6 +13,8 @@ import {
   Lock,
   Mail
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import api from '../../api/client';
 import { formatDate } from '../../utils/dateUtils';
 import { Button } from '../../components/ui/Button';
@@ -26,6 +28,8 @@ export function PayslipDetail() {
   const { id } = useParams();
   const [payslip, setPayslip] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const payslipCardRef = useRef(null);
 
   const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
@@ -49,19 +53,75 @@ export function PayslipDetail() {
   }, [id]);
 
   const handleDownloadPdf = async () => {
+    setDownloading(true);
     try {
-      const blob = await api.downloadPdf(`/payslips/${id}/pdf`);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Payslip-${payslip.payslip_number}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const card = payslipCardRef.current;
+      if (!card) throw new Error('Payslip element not found');
+
+      // Ensure all images are fully loaded before capturing
+      const images = card.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(
+          (img) =>
+            new Promise((resolve) => {
+              if (img.complete) resolve();
+              else {
+                img.onload = resolve;
+                img.onerror = resolve;
+              }
+            })
+        )
+      );
+
+      // Capture exact DOM view at high resolution (2.5x for 300+ DPI clarity)
+      const canvas = await html2canvas(card, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          const clonedCard = clonedDoc.getElementById('payslip-document-card');
+          if (clonedCard) {
+            clonedCard.style.boxShadow = 'none';
+          }
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const margin = 10; // 10mm margins
+      const printWidth = pdfWidth - margin * 2;
+      const printHeight = (canvas.height * printWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', margin, margin, printWidth, printHeight, undefined, 'FAST');
+      pdf.save(`Payslip-${payslip.payslip_number}.pdf`);
       showSuccess(`Downloaded Payslip-${payslip.payslip_number}.pdf`);
     } catch (err) {
-      showError(err.message || 'Failed to download PDF.');
+      console.warn('Client-side PDF capture failed, falling back to server export:', err);
+      try {
+        const blob = await api.downloadPdf(`/payslips/${id}/pdf`);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Payslip-${payslip.payslip_number}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showSuccess(`Downloaded Payslip-${payslip.payslip_number}.pdf`);
+      } catch (fallbackErr) {
+        showError(fallbackErr.message || 'Failed to download PDF.');
+      }
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -98,14 +158,24 @@ export function PayslipDetail() {
           <Button variant="outline" size="sm" icon={Printer} onClick={handlePrint}>
             Print Payslip
           </Button>
-          <Button variant="primary" size="sm" icon={Download} onClick={handleDownloadPdf}>
-            Download Official PDF
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Download}
+            loading={downloading}
+            onClick={handleDownloadPdf}
+          >
+            {downloading ? 'Preparing PDF...' : 'Download Official PDF'}
           </Button>
         </div>
       </div>
 
       {/* Printable Payslip Card Document */}
-      <div className="bg-white rounded-2xl border border-slate-300 shadow-2xl p-6 sm:p-10 space-y-6 print:border-none print:shadow-none print:p-0">
+      <div
+        id="payslip-document-card"
+        ref={payslipCardRef}
+        className="bg-white rounded-2xl border border-slate-300 shadow-2xl p-6 sm:p-10 space-y-6 print:border-none print:shadow-none print:p-0"
+      >
         {/* Document Header */}
         <div className="bg-slate-900 text-white p-6 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>

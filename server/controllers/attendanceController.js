@@ -59,6 +59,7 @@ async function getAttendance(req, res, next) {
 
     const records = await query
       .orderBy('a.date', 'desc')
+      .orderBy('a.id', 'desc')
       .limit(parseInt(limit, 10))
       .offset(offset);
 

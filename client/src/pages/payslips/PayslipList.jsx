@@ -54,21 +54,10 @@ export function PayslipList() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const handleDownloadPdf = async (id, number) => {
-    try {
-      const blob = await api.downloadPdf(`/payslips/${id}/pdf`);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Payslip-${number}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      showSuccess(`Downloaded Payslip-${number}.pdf`);
-    } catch (err) {
-      showError(err.message || 'Failed to download PDF payslip.');
-    }
+  const handleDownloadPdf = (id) => {
+    // Navigate to the payslip detail page where the pixel-perfect
+    // client-side html2canvas export is available
+    navigate(`/payslips/${id}`);
   };
 
   const formatCurrency = (val) => `₹${parseFloat(val || 0).toLocaleString('en-IN')}`;
@@ -148,7 +137,7 @@ export function PayslipList() {
             variant="outline"
             size="xs"
             icon={Download}
-            onClick={() => handleDownloadPdf(row.id, row.payslip_number)}
+            onClick={() => handleDownloadPdf(row.id)}
           >
             PDF
           </Button>

@@ -13,7 +13,7 @@ export function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden bg-[#FAF8F5]">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex shrink-0">
+      <div className="hidden lg:flex shrink-0 print:hidden">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -22,7 +22,7 @@ export function AppLayout() {
 
       {/* Mobile Sidebar Overlay Drawer */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
+        <div className="fixed inset-0 z-50 lg:hidden flex print:hidden">
           <div
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
@@ -38,7 +38,9 @@ export function AppLayout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header onMobileMenuToggle={() => setMobileMenuOpen(true)} />
+        <div className="print:hidden">
+          <Header onMobileMenuToggle={() => setMobileMenuOpen(true)} />
+        </div>
 
         <main className="flex-1 overflow-y-auto pt-8 sm:pt-10 lg:pt-12 px-4 sm:px-8 lg:px-10 pb-24 lg:pb-12">
           <Outlet />
@@ -46,10 +48,14 @@ export function AppLayout() {
       </div>
 
       {/* Bottom bar on Mobile */}
-      <MobileNav />
+      <div className="print:hidden">
+        <MobileNav />
+      </div>
 
       {/* Global Toast Notification Container */}
-      <ToastContainer />
+      <div className="print:hidden">
+        <ToastContainer />
+      </div>
     </div>
   );
 }

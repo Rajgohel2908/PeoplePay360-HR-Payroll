@@ -33,6 +33,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export function TimeOffDashboard() {
   const { user, isEmployeeOnly, hasRole } = useAuth();
+  const { showSuccess, showError } = useNotifications();
   const [allocations, setAllocations] = useState([]);
   const [requests, setRequests] = useState([]);
   const [types, setTypes] = useState([]);
@@ -86,13 +87,23 @@ export function TimeOffDashboard() {
     return `${year}-${month}-${day}`;
   };
 
+  const getFutureDateString = (daysAhead = 1) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const today = getLocalTodayString();
+  const defaultFutureDate = getFutureDateString(1);
 
   const [formData, setFormData] = useState({
     employee_id: '',
     leave_type_id: 1,
-    start_date: today,
-    end_date: today,
+    start_date: defaultFutureDate,
+    end_date: defaultFutureDate,
     duration_days: 1.0,
     reason: 'Personal time off'
   });
@@ -136,9 +147,9 @@ export function TimeOffDashboard() {
       const s = new Date(formData.start_date);
       const e = new Date(formData.end_date);
       if (e >= s) {
-        const diffTime = Math.abs(e - s);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-        setFormData((prev) => ({ ...prev, duration_days: diffDays }));
+        const diffTime = e.getTime() - s.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        setFormData((prev) => ({ ...prev, duration_days: Math.max(1, diffDays) }));
       }
     }
   }, [formData.start_date, formData.end_date]);
@@ -157,54 +168,37 @@ export function TimeOffDashboard() {
       return;
     }
 
+    const resolvedEmployeeId = isEmployeeOnly
+      ? user?.employee_id
+      : (formData.employee_id || user?.employee_id);
+
+    if (!resolvedEmployeeId) {
+      showError('Please select an employee for this leave request.');
+      return;
+    }
+
     const payload = {
       ...formData,
-      employee_id: isEmployeeOnly ? user.employee_id : (formData.employee_id || user.employee_id)
+      employee_id: resolvedEmployeeId
     };
 
-    // 1. Instantly close modal
-    setShowRequestModal(false);
-
-    // 2. Instantly show toast notification
-    showSuccess('Leave request submitted successfully for manager approval.');
-
-    // 3. Optimistically create request in UI
-    const selectedType = types.find((t) => t.id === Number(formData.leave_type_id)) || {};
-    const optimisticId = `temp-${Date.now()}`;
-    const optimisticReq = {
-      id: optimisticId,
-      employee_id: payload.employee_id,
-      first_name: user?.first_name || user?.username,
-      last_name: user?.last_name || '',
-      emp_code: user?.employee_id || 'EMP',
-      leave_type_id: payload.leave_type_id,
-      leave_type_name: selectedType.name || 'Leave',
-      leave_type_code: selectedType.code || 'LV',
-      leave_color: selectedType.color || '#10b981',
-      start_date: payload.start_date,
-      end_date: payload.end_date,
-      duration_days: payload.duration_days,
-      reason: payload.reason,
-      status: 'submitted',
-      created_at: new Date().toISOString()
-    };
-
-    setRequests((prev) => [optimisticReq, ...prev]);
-
-    // 4. Send API request in background
+    setSubmittingRequest(true);
     try {
       const res = await api.post('/time-off/requests', payload);
-      if (res.success && res.data) {
-        setRequests((prev) =>
-          prev.map((r) => (r.id === optimisticId ? { ...optimisticReq, ...res.data } : r))
-        );
-        api.get('/time-off/allocations').then((aRes) => {
-          if (aRes.success) setAllocations(aRes.data);
-        });
+      if (res.success) {
+        showSuccess(res.message || 'Leave request submitted successfully and sent to your HR department.');
+        setShowRequestModal(false);
+        setFormData((prev) => ({
+          ...prev,
+          employee_id: !isEmployeeOnly && user?.employee_id ? String(user.employee_id) : '',
+          reason: 'Personal time off'
+        }));
+        await loadData(true);
       }
     } catch (err) {
-      setRequests((prev) => prev.filter((r) => r.id !== optimisticId));
       showError(err.message || 'Failed to submit leave request.');
+    } finally {
+      setSubmittingRequest(false);
     }
   };
 
@@ -214,74 +208,25 @@ export function TimeOffDashboard() {
 
     const reqId = selectedRequest.id;
     const isApprove = actionType === 'approve';
-    const newStatus = isApprove ? 'approved' : 'refused';
-    const comment = approverComment;
+    const comment = approverComment.trim() || (isApprove ? 'Approved by HR' : 'Declined by HR');
 
-    // 1. Instantly close modal
-    setShowActionModal(false);
+    setSubmittingDecision(true);
+    try {
+      const endpoint = isApprove
+        ? `/time-off/requests/${reqId}/approve`
+        : `/time-off/requests/${reqId}/refuse`;
 
-    // 2. Instantly show success toast notification
-    showSuccess(`Leave request ${newStatus.toUpperCase()} successfully.`);
-
-    // 3. Instantly update table row status in state (Zero lag!)
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === reqId
-          ? {
-              ...r,
-              status: newStatus,
-              approver_comment: comment || (isApprove ? 'Approved' : 'Refused'),
-              approver_name: user?.username || 'You',
-              approved_at: isApprove ? new Date().toISOString() : r.approved_at
-            }
-          : r
-      )
-    );
-
-    // 4. Optimistically update allocation balance cards
-    if (selectedRequest.requires_allocation || selectedRequest.leave_type_id) {
-      setAllocations((prev) =>
-        prev.map((a) => {
-          if (
-            Number(a.leave_type_id) === Number(selectedRequest.leave_type_id) &&
-            String(a.employee_id) === String(selectedRequest.employee_id)
-          ) {
-            const duration = parseFloat(selectedRequest.duration_days || 0);
-            const pending = Math.max(0, parseFloat(a.pending_days || 0) - duration);
-            const used = isApprove ? parseFloat(a.used_days || 0) + duration : parseFloat(a.used_days || 0);
-            const remaining = Math.max(0, parseFloat(a.allocated_days || 0) - used);
-            return {
-              ...a,
-              pending_days: pending,
-              used_days: used,
-              remaining_days: remaining
-            };
-          }
-          return a;
-        })
-      );
+      const res = await api.post(endpoint, { approver_comment: comment });
+      if (res.success) {
+        showSuccess(res.message || `Leave request ${isApprove ? 'accepted' : 'rejected'} successfully.`);
+        setShowActionModal(false);
+        await loadData(true);
+      }
+    } catch (err) {
+      showError(err.message || `Failed to ${isApprove ? 'accept' : 'reject'} leave request.`);
+    } finally {
+      setSubmittingDecision(false);
     }
-
-    // 5. Send API call in background
-    const endpoint = isApprove
-      ? `/time-off/requests/${reqId}/approve`
-      : `/time-off/requests/${reqId}/refuse`;
-
-    api.post(endpoint, { approver_comment: comment })
-      .then((res) => {
-        if (res.success && res.data) {
-          setRequests((prev) =>
-            prev.map((r) => (r.id === reqId ? { ...r, ...res.data } : r))
-          );
-        }
-        api.get('/time-off/allocations').then((aRes) => {
-          if (aRes.success) setAllocations(aRes.data);
-        });
-      })
-      .catch((err) => {
-        showError(err.message || 'Failed to update leave status on server.');
-        loadData(true);
-      });
   };
 
   // High-level request counts
@@ -478,33 +423,96 @@ export function TimeOffDashboard() {
       align: 'right',
       cell: (row) => (
         <div className="flex items-center justify-end gap-1.5">
-          {hasRole(['admin', 'hr_manager', 'payroll_manager']) && row.status === 'submitted' && (
+          {hasRole(['admin', 'hr_manager', 'payroll_manager']) && (
             <>
-              <Button
-                variant="primary"
-                size="xs"
-                onClick={() => {
-                  setSelectedRequest(row);
-                  setActionType('approve');
-                  setApproverComment('Approved.');
-                  setShowActionModal(true);
-                }}
-              >
-                Approve
-              </Button>
-              <Button
-                variant="danger"
-                size="xs"
-                onClick={() => {
-                  setSelectedRequest(row);
-                  setActionType('refuse');
-                  setApproverComment('');
-                  setShowActionModal(true);
-                }}
-              >
-                Refuse
-              </Button>
+              {row.status === 'submitted' && (
+                <>
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    icon={Check}
+                    className="!bg-emerald-600 hover:!bg-emerald-700 !text-white font-semibold shadow-xs"
+                    onClick={() => {
+                      setSelectedRequest(row);
+                      setActionType('approve');
+                      setApproverComment('Approved.');
+                      setShowActionModal(true);
+                    }}
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="xs"
+                    icon={X}
+                    className="font-semibold shadow-xs"
+                    onClick={() => {
+                      setSelectedRequest(row);
+                      setActionType('refuse');
+                      setApproverComment('');
+                      setShowActionModal(true);
+                    }}
+                  >
+                    Reject
+                  </Button>
+                </>
+              )}
+
+              {row.status === 'approved' && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="text-rose-600 border-rose-200 hover:bg-rose-50 text-[11px]"
+                  onClick={() => {
+                    setSelectedRequest(row);
+                    setActionType('refuse');
+                    setApproverComment('Revoked by HR');
+                    setShowActionModal(true);
+                  }}
+                >
+                  Revoke
+                </Button>
+              )}
+
+              {row.status === 'refused' && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 text-[11px]"
+                  onClick={() => {
+                    setSelectedRequest(row);
+                    setActionType('approve');
+                    setApproverComment('Re-approved by HR');
+                    setShowActionModal(true);
+                  }}
+                >
+                  Re-Approve
+                </Button>
+              )}
             </>
+          )}
+
+          {isEmployeeOnly && row.status === 'submitted' && (
+            <Button
+              variant="outline"
+              size="xs"
+              className="text-slate-600 hover:bg-slate-100 text-[11px]"
+              onClick={async () => {
+                if (window.confirm('Are you sure you want to cancel this leave request?')) {
+                  try {
+                    const res = await api.post(`/time-off/requests/${row.id}/cancel`);
+                    if (res.success) {
+                      showSuccess('Leave request cancelled successfully.');
+                      loadData(true);
+                    }
+                  } catch (err) {
+                    showError(err.message || 'Failed to cancel request.');
+                  }
+                }
+              }}
+            >
+              Cancel
+            </Button>
           )}
         </div>
       )
@@ -626,11 +634,13 @@ export function TimeOffDashboard() {
             size="sm"
             icon={Plus}
             onClick={() => {
-              const currentToday = getLocalTodayString();
+              const safeStart = getFutureDateString(1);
               setFormData((prev) => ({
                 ...prev,
-                start_date: !prev.start_date || prev.start_date < currentToday ? currentToday : prev.start_date,
-                end_date: !prev.end_date || prev.end_date < currentToday ? currentToday : prev.end_date
+                employee_id: selectedEmployeeId || prev.employee_id || (isEmployeeOnly ? user?.employee_id : ''),
+                start_date: safeStart,
+                end_date: safeStart,
+                duration_days: 1.0
               }));
               setShowRequestModal(true);
             }}
@@ -979,10 +989,11 @@ export function TimeOffDashboard() {
           {!isEmployeeOnly && (
             <Select
               label="Select Employee"
+              required
               value={formData.employee_id}
               onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
             >
-              <option value="">Choose Employee (or Self)...</option>
+              <option value="">-- Choose Employee --</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.first_name} {e.last_name} ({e.employee_id})
@@ -1013,11 +1024,6 @@ export function TimeOffDashboard() {
               value={formData.start_date}
               onChange={(e) => {
                 const newStart = e.target.value;
-                const currentToday = getLocalTodayString();
-                if (newStart < currentToday) {
-                  showError('Start date cannot be in the past.');
-                  return;
-                }
                 setFormData((prev) => ({
                   ...prev,
                   start_date: newStart,
@@ -1049,7 +1055,7 @@ export function TimeOffDashboard() {
           />
 
           <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setShowRequestModal(false)}>
+            <Button variant="ghost" onClick={() => setShowRequestModal(false)} disabled={submittingRequest}>
               Cancel
             </Button>
             <Button
@@ -1064,25 +1070,24 @@ export function TimeOffDashboard() {
         </form>
       </Modal>
 
-      {/* Decision Modal (Approve / Refuse) */}
+      {/* Decision Modal (Accept / Reject) */}
       <Modal
         isOpen={showActionModal}
         onClose={() => setShowActionModal(false)}
-        title={actionType === 'approve' ? 'Approve Time Off Request' : 'Refuse Time Off Request'}
+        title={actionType === 'approve' ? 'Accept Time Off Request' : 'Reject Time Off Request'}
         subtitle={`Action for ${selectedRequest?.first_name} ${selectedRequest?.last_name} (${selectedRequest?.duration_days} days of ${selectedRequest?.leave_type_name})`}
         size="md"
       >
         <form onSubmit={handleDecision} className="space-y-4">
           <Input
-            label={actionType === 'approve' ? 'Approver Comments' : 'Mandatory Refusal Reason'}
-            required={actionType === 'refuse'}
+            label={actionType === 'approve' ? 'Approver Comments (Optional)' : 'Rejection Reason (Optional)'}
             value={approverComment}
             onChange={(e) => setApproverComment(e.target.value)}
-            placeholder={actionType === 'approve' ? 'Approved. Enjoy your time off!' : 'Reason for declining...'}
+            placeholder={actionType === 'approve' ? 'Approved by HR. Enjoy your time off!' : 'Reason for declining (e.g. Critical sprint deadline)...'}
           />
 
           <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setShowActionModal(false)}>
+            <Button variant="ghost" onClick={() => setShowActionModal(false)} disabled={submittingDecision}>
               Cancel
             </Button>
             <Button
@@ -1090,8 +1095,9 @@ export function TimeOffDashboard() {
               variant={actionType === 'approve' ? 'primary' : 'danger'}
               loading={submittingDecision}
               disabled={submittingDecision}
+              className={actionType === 'approve' ? '!bg-emerald-600 hover:!bg-emerald-700 !text-white' : ''}
             >
-              Confirm {actionType === 'approve' ? 'Approval' : 'Refusal'}
+              Confirm {actionType === 'approve' ? 'Acceptance' : 'Rejection'}
             </Button>
           </div>
         </form>

@@ -31,7 +31,10 @@ async function getPayruns(req, res, next) {
       query = query.where('pr.period_start', 'like', `${year}%`);
     }
 
-    const payruns = await query.orderBy('pr.period_start', 'desc');
+    const payruns = await query
+      .orderBy('pr.period_start', 'desc')
+      .orderBy('pr.created_at', 'desc')
+      .orderBy('pr.id', 'desc');
 
     // Attach validation issue summary counts to each payrun
     for (const p of payruns) {
@@ -112,7 +115,7 @@ async function getPayrunById(req, res, next) {
         'jp.title as position_title'
       )
       .where('ps.payrun_id', id)
-      .orderBy('ps.gross_salary', 'desc');
+      .orderBy('ps.id', 'desc');
 
     res.json({
       success: true,
@@ -179,7 +182,9 @@ async function findEligibleEmployees(req, res, next) {
       query = query.where('e.employee_type', employee_type);
     }
 
-    const employees = await query.orderBy('e.first_name', 'asc');
+    const employees = await query
+      .orderBy('e.created_at', 'desc')
+      .orderBy('e.id', 'desc');
 
     // Deduplicate employees in case multiple contracts matched
     const empMap = new Map();

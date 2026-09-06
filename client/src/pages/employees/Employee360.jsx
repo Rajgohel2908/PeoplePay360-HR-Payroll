@@ -23,7 +23,8 @@ import {
   Download,
   AlertTriangle,
   Key,
-  Lock
+  Lock,
+  Trash2
 } from 'lucide-react';
 import api from '../../api/client';
 import { formatDate } from '../../utils/dateUtils';
@@ -56,6 +57,8 @@ export function Employee360() {
     confirm_password: ''
   });
   const [pwdLoading, setPwdLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { showSuccess, showError } = useNotifications();
   const { user, hasRole } = useAuth();
@@ -194,14 +197,25 @@ export function Employee360() {
           )}
 
           {hasRole(['admin', 'hr_manager', 'payroll_manager']) && (
-            <Button
-              variant="outline"
-              size="sm"
-              icon={Edit2}
-              onClick={openEditModal}
-            >
-              Edit Profile
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={Edit2}
+                onClick={openEditModal}
+              >
+                Edit Profile
+              </Button>
+
+              <Button
+                variant="danger"
+                size="sm"
+                icon={Trash2}
+                onClick={() => setShowDeleteModal(true)}
+              >
+                Delete Employee
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -783,6 +797,64 @@ export function Employee360() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Employee Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Employee From Company"
+        subtitle={`Action for ${employee?.first_name} ${employee?.last_name} (${employee?.employee_id})`}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-rose-900 leading-relaxed">
+              <p className="font-bold mb-1">Warning: Irreversible Deletion</p>
+              <p>
+                Are you sure you want to delete <span className="font-bold">{employee?.first_name} {employee?.last_name}</span> from the company?
+              </p>
+              <p className="mt-1 text-slate-600">
+                All associated records including attendance logs, time-off requests, and contract links will be removed or archived.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={deleteLoading}
+              disabled={deleteLoading}
+              icon={Trash2}
+              onClick={async () => {
+                if (!employee) return;
+                setDeleteLoading(true);
+                try {
+                  const res = await api.delete(`/employees/${employee.id}`);
+                  if (res.success) {
+                    showSuccess(res.message || `${employee.first_name} ${employee.last_name} was removed from the company.`);
+                    setShowDeleteModal(false);
+                    navigate('/employees');
+                  }
+                } catch (err) {
+                  showError(err.message || 'Failed to delete employee.');
+                } finally {
+                  setDeleteLoading(false);
+                }
+              }}
+            >
+              Confirm Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

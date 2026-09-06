@@ -34,7 +34,9 @@ async function getContracts(req, res, next) {
       query = query.where('c.department_id', department_id);
     }
 
-    const contracts = await query.orderBy('c.start_date', 'desc');
+    const contracts = await query
+      .orderBy('c.created_at', 'desc')
+      .orderBy('c.id', 'desc');
 
     res.json({
       success: true,

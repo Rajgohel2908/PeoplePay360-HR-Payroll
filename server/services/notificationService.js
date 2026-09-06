@@ -54,7 +54,8 @@ async function syncOperationalWarningsToNotifications(userId, userRole) {
     const missingBankEmps = await db('employees')
       .whereNull('bank_name')
       .orWhereNull('account_number')
-      .select('id', 'employee_id as emp_code', 'first_name', 'last_name');
+      .select('id', 'employee_id as emp_code', 'first_name', 'last_name')
+      .orderBy('id', 'desc');
 
     if (missingBankEmps.length > 0) {
       const type = 'BLOCKER_MISSING_BANK';
@@ -82,7 +83,8 @@ async function syncOperationalWarningsToNotifications(userId, userRole) {
     const expiredContracts = await db('contracts as c')
       .join('employees as e', 'c.employee_id', 'e.id')
       .where('c.status', 'expired')
-      .select('c.id', 'c.contract_id', 'e.first_name', 'e.last_name', 'c.end_date');
+      .select('c.id', 'c.contract_id', 'e.first_name', 'e.last_name', 'c.end_date')
+      .orderBy('c.id', 'desc');
 
     if (expiredContracts.length > 0) {
       const type = 'BLOCKER_EXPIRED_CONTRACT';
@@ -109,7 +111,9 @@ async function syncOperationalWarningsToNotifications(userId, userRole) {
     const missingCheckouts = await db('attendance as a')
       .join('employees as e', 'a.employee_id', 'e.id')
       .where('a.status', 'missing_checkout')
-      .select('a.id', 'a.date', 'e.first_name', 'e.last_name');
+      .select('a.id', 'a.date', 'e.first_name', 'e.last_name')
+      .orderBy('a.date', 'desc')
+      .orderBy('a.id', 'desc');
 
     if (missingCheckouts.length > 0) {
       const type = 'WARNING_MISSING_CHECKOUT';
